@@ -13,6 +13,7 @@ func main() {
 	http.ListenAndServe(":8080", router)
 }
 
+// test
 func setupServer() chi.Router {
 	initQuests()
 	router := chi.NewRouter()
