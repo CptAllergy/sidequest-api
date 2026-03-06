@@ -1,21 +1,16 @@
-package main
+package server
 
 import (
 	"net/http"
+	"sidequest-api/internal/services"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
-func main() {
-	router := setupServer()
-	http.ListenAndServe(":8080", router)
-}
-
-// test
-func setupServer() chi.Router {
-	initQuests()
+func SetupServer() chi.Router {
+	services.InitQuests()
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 
@@ -45,7 +40,7 @@ func setupServer() chi.Router {
 
 func QuestRoutes() chi.Router {
 	router := chi.NewRouter()
-	questHandler := QuestHandler{}
+	questHandler := services.QuestHandler{}
 	router.Get("/", questHandler.ListQuests)
 	router.Post("/", questHandler.CreateQuest)
 	router.Get("/{id}", questHandler.GetQuest)

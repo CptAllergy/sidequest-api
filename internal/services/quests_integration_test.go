@@ -1,14 +1,15 @@
-package main
+package services
 
 import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sidequest-api/internal/server"
 	"testing"
 )
 
 func runTestServer() *httptest.Server {
-	return httptest.NewServer(setupServer())
+	return httptest.NewServer(server.SetupServer())
 }
 
 func TestIntegrationGetQuestsHandler(t *testing.T) {

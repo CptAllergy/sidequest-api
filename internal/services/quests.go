@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"encoding/json"
@@ -22,16 +22,11 @@ func (q QuestHandler) ListQuests(w http.ResponseWriter, r *http.Request) {
 
 func (q QuestHandler) GetQuest(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	idString, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
-	quest := getQuest(idString)
+	quest := getQuest(id)
 	if quest == nil {
 		http.Error(w, "Quest not found", http.StatusNotFound)
 	}
-	err = json.NewEncoder(w).Encode(quest)
+	err := json.NewEncoder(w).Encode(quest)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
@@ -39,7 +34,7 @@ func (q QuestHandler) GetQuest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (q QuestHandler) CreateQuest(w http.ResponseWriter, r *http.Request) {
-	id := rand.IntN(1000)
+	id := strconv.Itoa(rand.IntN(1000))
 	var quest Quest
 	err := json.NewDecoder(r.Body).Decode(&quest)
 	if err != nil {
@@ -57,18 +52,13 @@ func (q QuestHandler) CreateQuest(w http.ResponseWriter, r *http.Request) {
 
 func (q QuestHandler) UpdateQuest(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	idString, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
 	var quest Quest
-	err = json.NewDecoder(r.Body).Decode(&quest)
+	err := json.NewDecoder(r.Body).Decode(&quest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	updatedQuest := updateQuest(idString, quest)
+	updatedQuest := updateQuest(id, quest)
 	if updatedQuest == nil {
 		http.Error(w, "Quest not found", http.StatusNotFound)
 		return
@@ -81,12 +71,7 @@ func (q QuestHandler) UpdateQuest(w http.ResponseWriter, r *http.Request) {
 }
 func (q QuestHandler) DeleteQuest(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	idString, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
-	quest := deleteQuest(idString)
+	quest := deleteQuest(id)
 	if quest == nil {
 		http.Error(w, "Quest not found", http.StatusNotFound)
 		return
