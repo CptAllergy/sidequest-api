@@ -22,10 +22,10 @@ create_migrations:
 	sqlx migrate add -r init
 
 migrate_up:
-	sqlx migrate run --database-url "postgres://${USER}:${PASSWORD}@${HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+	goose up
 
 migrate_down:
-	sqlx migrate revert --database-url "postgres://${USER}:${PASSWORD}@${HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+	goose down
 
 build:
 	if [ -f "${BINARY}" ]; then \

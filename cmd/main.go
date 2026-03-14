@@ -1,75 +1,69 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
+	"log/slog"
 	"os"
-	"sidequest-api/internal/db"
-	"sidequest-api/internal/router"
-	"sidequest-api/internal/services"
 
+	"strconv"
+
+	"github.com/cptallergy/sidequest-api/internal/api"
+	"github.com/cptallergy/sidequest-api/internal/store"
 	"github.com/joho/godotenv"
 )
 
+// TODO use a proper logger instead of log.Println, like slog
 // TODO: this main.go file could be in a cmd/server directory, in root, or where it is now, try to figure out the best convention
 
-type Config struct {
-	Port string
-}
-
-type Application struct {
-	Config Config
-	Models services.Models
-}
-
-func (app *Application) Serve() error {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	// TODO: router := server.SetupServer()
-	port := os.Getenv("PORT")
-	fmt.Println("Starting server on port ", port)
-
-	// TODO maybe just add the default listenAndServer from http instead of this constructor thing
-	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: router.Routes(),
-	}
-	return server.ListenAndServe()
-}
-
 func main() {
+	// TODO make the logs look nicer
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	// TODO Maybe don't need to call this code twice here
 	err := godotenv.Load()
 	if err != nil {
+		// TODO eventually figure out how to use env variables in a deployment, and if this should fail if there is an error when loading
 		log.Fatal("Error loading .env file")
 	}
 
-	cfg := Config{
-		Port: os.Getenv("PORT"),
+	// TODO handle errors
+	maxOpenDbConn, _ := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONNECTIONS"))
+	maxIdleDbConn, _ := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONNECTIONS"))
+
+	// TODO should load something into the address field of the config here
+	cfg := api.Config{
+		Address: ":" + os.Getenv("PORT"),
+		Port:    os.Getenv("PORT"),
+		Db: api.DbConfig{
+			Dsn:          os.Getenv("DSN"),
+			MaxOpenConns: maxOpenDbConn,
+			MaxIdleConns: maxIdleDbConn,
+			MaxIdleTime:  os.Getenv("DB_MAX_IDLE_TIME"),
+		},
 	}
 
-	dsn := os.Getenv("DSN")
-	dbConn, err := db.ConnectPostgres(dsn)
+	database, err := store.New(
+		cfg.Db.Dsn,
+		cfg.Db.MaxOpenConns,
+		cfg.Db.MaxIdleConns,
+		cfg.Db.MaxIdleTime,
+	)
 	if err != nil {
+		// TODO which one to use?
 		log.Fatal("Cannot connect to database")
+		//log.Panic("Cannot connect to database")
 	}
+	defer database.Close()
+	storage := store.NewStorage(database)
 
-	defer dbConn.DB.Close()
-
-	app := &Application{
+	app := &api.Application{
 		Config: cfg,
-		Models: services.New(dbConn.DB),
+		Store:  storage,
 	}
 
-	err = app.Serve()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	//router := server.SetupServer()
-	//http.ListenAndServe(":8080", router)
+	mux := app.Mount()
+	err = app.Run(mux)
+	slog.Error("server failed to start", err)
+	os.Exit(1)
 }
