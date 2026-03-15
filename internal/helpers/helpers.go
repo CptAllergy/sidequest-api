@@ -3,27 +3,12 @@ package helpers
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
-	"os"
 )
 
 // TODO understand what is useful from this class and if I can use it in some better manner
 
 type Envelope map[string]interface{}
-
-type Message struct {
-	InfoLog  *log.Logger
-	ErrorLog *log.Logger
-}
-
-var infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-var errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
-
-var MessageLogs = &Message{
-	InfoLog:  infoLog,
-	ErrorLog: errorLog,
-}
 
 func ReadJSON(w http.ResponseWriter, r *http.Request, data interface{}) error {
 	maxByte := 1048576

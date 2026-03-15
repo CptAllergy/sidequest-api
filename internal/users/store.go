@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"time"
-	// TODO might need to import pgx driver here  "github.com/jackc/pgx/v5"
 )
 
 type User struct {

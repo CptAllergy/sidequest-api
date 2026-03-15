@@ -18,9 +18,9 @@ type Application struct {
 }
 
 type Config struct {
-	Address string
-	Port    string
-	Db      DbConfig
+	Addr string
+	Port string
+	Db   DbConfig
 }
 
 type DbConfig struct {
@@ -28,6 +28,21 @@ type DbConfig struct {
 	MaxOpenConns int
 	MaxIdleConns int
 	MaxIdleTime  string
+}
+
+func (app *Application) Run(h http.Handler) error {
+	srv := &http.Server{
+		// TODO this was ":port" before, but probs better to load from the config like this
+		Addr:    app.Config.Addr,
+		Handler: h,
+		// TODO think about these values, maybe make them configurable in the config struct
+		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  10 * time.Second,
+		IdleTimeout:  time.Minute,
+	}
+
+	log.Printf("starting server on %s", app.Config.Addr)
+	return srv.ListenAndServe()
 }
 
 func (app *Application) Mount() http.Handler {
@@ -49,39 +64,16 @@ func (app *Application) Mount() http.Handler {
 		MaxAge:           300,
 	}))
 
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/quests", app.GetAllQuestsHandler)
-		r.Post("/quests", app.CreateQuestHandler)
-	})
-
-	// TODO replace old router with this new one
-	r.Route("/api/v2", func(r chi.Router) {
-		// TODO unsure if I should include these declarations here
-		questService := quests.NewService(app.Store.Quests)
-		questHandler := quests.NewHandler(questService)
-		r.Get("/quests", questHandler.ListQuests)
-	})
+	app.mountQuests(r)
 
 	return r
 }
 
-// TODO
-//func questRoutes() chi.Router {
-//
-//}
-
-// TODO maybe change Run to some other name, like start
-func (app *Application) Run(mux http.Handler) error {
-	srv := &http.Server{
-		// TODO this was ":port" before, but probs better to load from the config like this
-		Addr:    app.Config.Address,
-		Handler: mux,
-		// TODO think about these values, maybe make them configurable in the config struct
-		WriteTimeout: 30 * time.Second,
-		ReadTimeout:  10 * time.Second,
-		IdleTimeout:  time.Minute,
-	}
-
-	log.Printf("starting server on %s", app.Config.Address)
-	return srv.ListenAndServe()
+func (app *Application) mountQuests(r chi.Router) {
+	questService := quests.NewService(app.Store.Quests)
+	questHandler := quests.NewHandler(questService)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/quests", questHandler.List)
+		r.Post("/quests", questHandler.Create)
+	})
 }

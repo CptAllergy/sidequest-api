@@ -1,34 +1,74 @@
 package quests
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/cptallergy/sidequest-api/internal/json"
 )
 
-type handler struct {
+type Handler struct {
 	service Service
 }
 
-func NewHandler(service Service) *handler {
-	return &handler{
+func NewHandler(service Service) *Handler {
+	return &Handler{
 		service: service,
 	}
 }
 
-func (h *handler) ListQuests(w http.ResponseWriter, r *http.Request) {
-	quests, err := h.service.ListQuests(r.Context())
+// TODO create request types with validation
+/* TODO like this, but need to find a library for validation, maybe go-playground/validator
+type CreateQuestRequest struct {
+    // 'validate' tags define the rules
+    Name        string `json:"name" validate:"required,min=3,max=100"`
+    Description string `json:"description" validate:"required"`
+    Reward      int    `json:"reward" validate:"gte=0"`
+}
+*/
+
+// TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
+// TODO figure out pagination
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	quests, err := h.service.List(r.Context())
 	if err != nil {
-		log.Println(err)
+		slog.Error("Error listing quests", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	json.Write(w, http.StatusOK, quests)
+	// TODO should I use an envelope for this **helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"quests": all})*** what's the point of the envelope?
+	err = json.Write(w, http.StatusOK, quests)
+	if err != nil {
+		slog.Error("Error writing response", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	var newQuest Quest
+	if err := json.Read(r, &newQuest); err != nil {
+		slog.Error("Error reading request body", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.Create(r.Context(), &newQuest)
+	if err != nil {
+		slog.Error("Error creating quest", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = json.Write(w, http.StatusOK, newQuest)
+	if err != nil {
+		slog.Error("Error writing response", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // TODO implement handlers
-//func (q QuestHandler) ListQuests(w http.ResponseWriter, r *http.Request) {
+//func (q QuestHandler) List(w http.ResponseWriter, r *http.Request) {
 //	err := json.go.NewEncoder(w).Encode(listQuests())
 //	if err != nil {
 //		http.Error(w, "Internal error", http.StatusInternalServerError)

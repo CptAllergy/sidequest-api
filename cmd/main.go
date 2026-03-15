@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"database/sql"
 	"log/slog"
 	"os"
 
@@ -20,11 +20,10 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	// TODO Maybe don't need to call this code twice here
 	err := godotenv.Load()
 	if err != nil {
 		// TODO eventually figure out how to use env variables in a deployment, and if this should fail if there is an error when loading
-		log.Fatal("Error loading .env file")
+		slog.Error("Error loading .env file", "err", err)
 	}
 
 	// TODO handle errors
@@ -33,8 +32,8 @@ func main() {
 
 	// TODO should load something into the address field of the config here
 	cfg := api.Config{
-		Address: ":" + os.Getenv("PORT"),
-		Port:    os.Getenv("PORT"),
+		Addr: ":" + os.Getenv("PORT"),
+		Port: os.Getenv("PORT"),
 		Db: api.DbConfig{
 			Dsn:          os.Getenv("DSN"),
 			MaxOpenConns: maxOpenDbConn,
@@ -50,11 +49,15 @@ func main() {
 		cfg.Db.MaxIdleTime,
 	)
 	if err != nil {
-		// TODO which one to use?
-		log.Fatal("Cannot connect to database")
-		//log.Panic("Cannot connect to database")
+		panic("Cannot connect to database")
 	}
-	defer database.Close()
+	defer func(database *sql.DB) {
+		err := database.Close()
+		if err != nil {
+			slog.Error("error closing db", "err", err)
+		}
+	}(database)
+
 	storage := store.NewStorage(database)
 
 	app := &api.Application{

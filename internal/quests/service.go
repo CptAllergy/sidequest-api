@@ -5,7 +5,8 @@ import (
 )
 
 type Service interface {
-	ListQuests(ctx context.Context) ([]*Quest, error)
+	List(context.Context) ([]*Quest, error)
+	Create(context.Context, *Quest) error
 }
 
 type svc struct {
@@ -16,6 +17,10 @@ func NewService(store Store) Service {
 	return &svc{store: store}
 }
 
-func (s *svc) ListQuests(ctx context.Context) ([]*Quest, error) {
-	return s.store.GetAll(ctx)
+func (s *svc) List(ctx context.Context) ([]*Quest, error) {
+	return s.store.List(ctx)
+}
+
+func (s *svc) Create(ctx context.Context, quest *Quest) error {
+	return s.store.Create(ctx, quest)
 }

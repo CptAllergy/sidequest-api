@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"time"
-	// TODO might need to import pgx driver here  "github.com/jackc/pgx/v5"
 )
 
 type Quest struct {
@@ -18,7 +17,7 @@ type Quest struct {
 
 type Store interface {
 	Create(context.Context, *Quest) error
-	GetAll(context.Context) ([]*Quest, error)
+	List(context.Context) ([]*Quest, error)
 }
 
 type PostgresStore struct {
@@ -47,7 +46,7 @@ func (s *PostgresStore) Create(ctx context.Context, quest *Quest) error {
 }
 
 // TODO use sqlx and fix this up
-func (s *PostgresStore) GetAll(ctx context.Context) ([]*Quest, error) {
+func (s *PostgresStore) List(ctx context.Context) ([]*Quest, error) {
 	query := `SELECT id, name, description, reward, created_at, updated_at FROM quests`
 	rows, err := s.Db.QueryContext(ctx, query)
 	if err != nil {
