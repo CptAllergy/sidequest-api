@@ -1,19 +1,17 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"log/slog"
 	"os"
 
 	"strconv"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
-	"github.com/cptallergy/sidequest-api/internal/store"
+	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
-
-// TODO use a proper logger instead of log.Println, like slog
-// TODO: this main.go file could be in a cmd/server directory, in root, or where it is now, try to figure out the best convention
 
 func main() {
 	// TODO make the logs look nicer
@@ -42,27 +40,23 @@ func main() {
 		},
 	}
 
-	database, err := store.New(
-		cfg.Db.Dsn,
-		cfg.Db.MaxOpenConns,
-		cfg.Db.MaxIdleConns,
-		cfg.Db.MaxIdleTime,
-	)
+	connPool, err := pgxpool.New(context.Background(), cfg.Db.Dsn)
 	if err != nil {
-		panic("Cannot connect to database")
+		panic(err)
 	}
-	defer func(database *sql.DB) {
-		err := database.Close()
-		if err != nil {
-			slog.Error("error closing db", "err", err)
-		}
-	}(database)
+	defer connPool.Close()
 
-	storage := store.NewStorage(database)
+	// TODO should I pass these configurations to some other object?
+	//cfg.Db.Dsn,
+	//cfg.Db.MaxOpenConns,
+	//cfg.Db.MaxIdleConns,
+	//cfg.Db.MaxIdleTime,
+
+	store := db.NewStore(connPool)
 
 	app := &api.Application{
 		Config: cfg,
-		Store:  storage,
+		Store:  store,
 	}
 
 	mux := app.Mount()

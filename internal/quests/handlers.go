@@ -4,16 +4,17 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/json"
 )
 
 type Handler struct {
-	service Service
+	srv *Service
 }
 
-func NewHandler(service Service) *Handler {
+func NewHandler(srv *Service) *Handler {
 	return &Handler{
-		service: service,
+		srv: srv,
 	}
 }
 
@@ -30,7 +31,7 @@ type CreateQuestRequest struct {
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 // TODO figure out pagination
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	quests, err := h.service.List(r.Context())
+	quests, err := h.srv.List(r.Context())
 	if err != nil {
 		slog.Error("Error listing quests", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -46,20 +47,20 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var newQuest Quest
+	var newQuest db.CreateQuestParams
 	if err := json.Read(r, &newQuest); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err := h.service.Create(r.Context(), &newQuest)
+	createdQuest, err := h.srv.Create(r.Context(), &newQuest)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, newQuest)
+	err = json.Write(w, http.StatusOK, createdQuest)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

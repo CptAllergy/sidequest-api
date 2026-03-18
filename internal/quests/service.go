@@ -2,25 +2,29 @@ package quests
 
 import (
 	"context"
+
+	db "github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Service interface {
-	List(context.Context) ([]*Quest, error)
-	Create(context.Context, *Quest) error
+type store interface {
+	CreateQuest(ctx context.Context, arg db.CreateQuestParams) (db.Quest, error)
+	GetQuest(ctx context.Context, id pgtype.UUID) (db.Quest, error)
+	ListQuests(ctx context.Context) ([]db.Quest, error)
 }
 
-type svc struct {
-	store Store
+type Service struct {
+	store store
 }
 
-func NewService(store Store) Service {
-	return &svc{store: store}
+func NewService(store store) *Service {
+	return &Service{store: store}
 }
 
-func (s *svc) List(ctx context.Context) ([]*Quest, error) {
-	return s.store.List(ctx)
+func (s *Service) List(ctx context.Context) ([]db.Quest, error) {
+	return s.store.ListQuests(ctx)
 }
 
-func (s *svc) Create(ctx context.Context, quest *Quest) error {
-	return s.store.Create(ctx, quest)
+func (s *Service) Create(ctx context.Context, quest *db.CreateQuestParams) (db.Quest, error) {
+	return s.store.CreateQuest(ctx, *quest)
 }

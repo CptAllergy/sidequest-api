@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/quests"
-	"github.com/cptallergy/sidequest-api/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -14,7 +14,7 @@ import (
 
 type Application struct {
 	Config Config
-	Store  store.Storage
+	Store  db.Store
 }
 
 type Config struct {
@@ -70,7 +70,7 @@ func (app *Application) Mount() http.Handler {
 }
 
 func (app *Application) mountQuests(r chi.Router) {
-	questService := quests.NewService(app.Store.Quests)
+	questService := quests.NewService(app.Store)
 	questHandler := quests.NewHandler(questService)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/quests", questHandler.List)
