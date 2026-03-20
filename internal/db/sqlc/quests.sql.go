@@ -12,25 +12,38 @@ import (
 )
 
 const createQuest = `-- name: CreateQuest :one
-INSERT INTO quests (name, description, reward)
-VALUES ($1, $2, $3)
-RETURNING id, name, description, reward, created_at, updated_at
+INSERT INTO quests (user_id, title, description, type, status, image_url)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, title, description, type, status, image_url, created_at, updated_at
 `
 
 type CreateQuestParams struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Reward      int32  `json:"reward"`
+	UserID      pgtype.UUID `json:"user_id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+	Type        string      `json:"type"`
+	Status      string      `json:"status"`
+	ImageUrl    string      `json:"image_url"`
 }
 
 func (q *Queries) CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error) {
-	row := q.db.QueryRow(ctx, createQuest, arg.Name, arg.Description, arg.Reward)
+	row := q.db.QueryRow(ctx, createQuest,
+		arg.UserID,
+		arg.Title,
+		arg.Description,
+		arg.Type,
+		arg.Status,
+		arg.ImageUrl,
+	)
 	var i Quest
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
+		&i.UserID,
+		&i.Title,
 		&i.Description,
-		&i.Reward,
+		&i.Type,
+		&i.Status,
+		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -38,7 +51,8 @@ func (q *Queries) CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest
 }
 
 const getQuest = `-- name: GetQuest :one
-SELECT id, name, description, reward, created_at, updated_at FROM quests
+SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
+FROM quests
 WHERE id = $1
 `
 
@@ -47,9 +61,12 @@ func (q *Queries) GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error) {
 	var i Quest
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
+		&i.UserID,
+		&i.Title,
 		&i.Description,
-		&i.Reward,
+		&i.Type,
+		&i.Status,
+		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -57,7 +74,8 @@ func (q *Queries) GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error) {
 }
 
 const listQuests = `-- name: ListQuests :many
-SELECT id, name, description, reward, created_at, updated_at FROM quests
+SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
+FROM quests
 `
 
 func (q *Queries) ListQuests(ctx context.Context) ([]Quest, error) {
@@ -71,9 +89,12 @@ func (q *Queries) ListQuests(ctx context.Context) ([]Quest, error) {
 		var i Quest
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
+			&i.UserID,
+			&i.Title,
 			&i.Description,
-			&i.Reward,
+			&i.Type,
+			&i.Status,
+			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

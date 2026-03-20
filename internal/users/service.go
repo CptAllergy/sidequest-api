@@ -8,7 +8,10 @@ import (
 )
 
 type store interface {
-	GetUser(ctx context.Context, id pgtype.UUID) (db.User, error)
+	CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error)
+	GetUserById(ctx context.Context, id pgtype.UUID) (db.User, error)
+	GetUserByEmail(ctx context.Context, email string) (db.User, error)
+	GetUserByUsername(ctx context.Context, username string) (db.User, error)
 	ListUsers(ctx context.Context) ([]db.User, error)
 }
 
@@ -20,6 +23,15 @@ type Service struct {
 
 func NewService(store store) *Service {
 	return &Service{store}
+}
+
+func (s *Service) Create(ctx context.Context, user db.CreateUserParams) (db.User, error) {
+	// TODO use transaction to create user and account
+	return s.store.CreateUser(ctx, user)
+}
+
+func (s *Service) GetByUsername(ctx context.Context, username string) (db.User, error) {
+	return s.store.GetUserByUsername(ctx, username)
 }
 
 func (s *Service) List(ctx context.Context) ([]db.User, error) {

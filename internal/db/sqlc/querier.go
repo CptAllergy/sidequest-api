@@ -14,7 +14,9 @@ type Querier interface {
 	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error)
-	GetUser(ctx context.Context, id pgtype.UUID) (User, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserById(ctx context.Context, id pgtype.UUID) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
 	ListQuests(ctx context.Context) ([]Quest, error)
 	ListUsers(ctx context.Context) ([]User, error)
 }

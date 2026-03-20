@@ -18,7 +18,7 @@ func NewHandler(srv *Service) *Handler {
 	}
 }
 
-// TODO create request types with validation
+// TODO create DTO request types with validation
 /* TODO like this, but need to find a library for validation, maybe go-playground/validator
 type CreateQuestRequest struct {
     // 'validate' tags define the rules
@@ -54,7 +54,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdQuest, err := h.srv.Create(r.Context(), &newQuest)
+	createdQuest, err := h.srv.Create(r.Context(), newQuest)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -12,44 +12,100 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password, email)
-VALUES ($1, $2, $3)
-RETURNING id, username, email, password, created_at, updated_at
+INSERT INTO users (email, username)
+VALUES ($1, $2)
+RETURNING id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	Username string `json:"username"`
-	Password []byte `json:"password"`
 	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.Password, arg.Email)
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.Username)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
 		&i.Email,
-		&i.Password,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.IsVerified,
+		&i.VerifiedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const getUser = `-- name: GetUser :one
-SELECT id, username, email, password, created_at, updated_at FROM users
-WHERE id = $1
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+FROM users
+WHERE email = $1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
-	row := q.db.QueryRow(ctx, getUser, id)
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
 		&i.Email,
-		&i.Password,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserById = `-- name: GetUserById :one
+SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetUserById(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserById, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+FROM users
+WHERE username = $1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.IsVerified,
+		&i.VerifiedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -57,7 +113,8 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+FROM users
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -71,9 +128,13 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		var i User
 		if err := rows.Scan(
 			&i.ID,
-			&i.Username,
 			&i.Email,
-			&i.Password,
+			&i.Username,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.IsVerified,
+			&i.VerifiedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

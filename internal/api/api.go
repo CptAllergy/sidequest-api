@@ -7,6 +7,7 @@ import (
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/quests"
+	"github.com/cptallergy/sidequest-api/internal/users"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -65,6 +66,7 @@ func (app *Application) Mount() http.Handler {
 	}))
 
 	app.mountQuests(r)
+	app.mountUsers(r)
 
 	return r
 }
@@ -72,8 +74,18 @@ func (app *Application) Mount() http.Handler {
 func (app *Application) mountQuests(r chi.Router) {
 	questService := quests.NewService(app.Store)
 	questHandler := quests.NewHandler(questService)
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/quests", questHandler.List)
-		r.Post("/quests", questHandler.Create)
+	r.Route("/api/v1/quests", func(r chi.Router) {
+		r.Get("/", questHandler.List)
+		r.Post("/", questHandler.Create)
+	})
+}
+
+func (app *Application) mountUsers(r chi.Router) {
+	userService := users.NewService(app.Store)
+	userHandler := users.NewHandler(userService)
+	r.Route("/api/v1/users", func(r chi.Router) {
+		r.Get("/{username}", userHandler.GetByUsername)
+		r.Get("/", userHandler.List)
+		r.Post("/", userHandler.Create)
 	})
 }

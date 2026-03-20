@@ -10,18 +10,45 @@ import (
 
 type Quest struct {
 	ID          pgtype.UUID        `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Reward      int32              `json:"reward"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Title       string             `json:"title"`
+	Description pgtype.Text        `json:"description"`
+	Type        string             `json:"type"`
+	Status      string             `json:"status"`
+	ImageUrl    string             `json:"image_url"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
-type User struct {
+type QuestEntry struct {
 	ID        pgtype.UUID        `json:"id"`
-	Username  string             `json:"username"`
-	Email     string             `json:"email"`
-	Password  []byte             `json:"password"`
+	QuestID   pgtype.UUID        `json:"quest_id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Type      string             `json:"type"`
+	Content   []byte             `json:"content"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type User struct {
+	ID          pgtype.UUID        `json:"id"`
+	Email       string             `json:"email"`
+	Username    string             `json:"username"`
+	DisplayName pgtype.Text        `json:"display_name"`
+	AvatarUrl   pgtype.Text        `json:"avatar_url"`
+	Bio         pgtype.Text        `json:"bio"`
+	IsVerified  bool               `json:"is_verified"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserAccount struct {
+	ID             pgtype.UUID        `json:"id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	Provider       string             `json:"provider"`
+	ProviderUserID pgtype.Text        `json:"provider_user_id"`
+	Password       []byte             `json:"password"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }

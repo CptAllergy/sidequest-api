@@ -25,6 +25,6 @@ func (s *Service) List(ctx context.Context) ([]db.Quest, error) {
 	return s.store.ListQuests(ctx)
 }
 
-func (s *Service) Create(ctx context.Context, quest *db.CreateQuestParams) (db.Quest, error) {
-	return s.store.CreateQuest(ctx, *quest)
+func (s *Service) Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error) {
+	return s.store.CreateQuest(ctx, quest)
 }
