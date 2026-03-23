@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/validation"
 	"github.com/cptallergy/sidequest-api/internal/quests"
 	"github.com/cptallergy/sidequest-api/internal/users"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-playground/validator/v10"
 )
 
 type Application struct {
@@ -65,24 +67,25 @@ func (app *Application) Mount() http.Handler {
 		MaxAge:           300,
 	}))
 
-	app.mountQuests(r)
-	app.mountUsers(r)
+	validate := validation.SetupValidator()
+	app.mountQuests(r, validate)
+	app.mountUsers(r, validate)
 
 	return r
 }
 
-func (app *Application) mountQuests(r chi.Router) {
+func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) {
 	questService := quests.NewService(app.Store)
-	questHandler := quests.NewHandler(questService)
+	questHandler := quests.NewHandler(questService, validate)
 	r.Route("/api/v1/quests", func(r chi.Router) {
 		r.Get("/", questHandler.List)
 		r.Post("/", questHandler.Create)
 	})
 }
 
-func (app *Application) mountUsers(r chi.Router) {
+func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 	userService := users.NewService(app.Store)
-	userHandler := users.NewHandler(userService)
+	userHandler := users.NewHandler(userService, validate)
 	r.Route("/api/v1/users", func(r chi.Router) {
 		r.Get("/{username}", userHandler.GetByUsername)
 		r.Get("/", userHandler.List)

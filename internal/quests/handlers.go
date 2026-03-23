@@ -5,28 +5,25 @@ import (
 	"net/http"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
-	"github.com/cptallergy/sidequest-api/internal/json"
+	"github.com/cptallergy/sidequest-api/internal/lib/json"
+	"github.com/go-playground/validator/v10"
 )
 
 type Handler struct {
-	srv *Service
+	srv      *Service
+	validate *validator.Validate
 }
 
-func NewHandler(srv *Service) *Handler {
+func NewHandler(srv *Service, validate *validator.Validate) *Handler {
+	// TODO handle errors
+	// TODO ensure we get helpful error messages when some validation fails
+	registerValidations(validate)
+
 	return &Handler{
-		srv: srv,
+		srv,
+		validate,
 	}
 }
-
-// TODO create DTO request types with validation
-/* TODO like this, but need to find a library for validation, maybe go-playground/validator
-type CreateQuestRequest struct {
-    // 'validate' tags define the rules
-    Name        string `json:"name" validate:"required,min=3,max=100"`
-    Description string `json:"description" validate:"required"`
-    Reward      int    `json:"reward" validate:"gte=0"`
-}
-*/
 
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 // TODO figure out pagination
@@ -135,3 +132,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 //	}
 //	w.WriteHeader(http.StatusNoContent)
 //}
+
+func registerValidations(v *validator.Validate) error {
+	err := v.RegisterValidation("quest_status", func(fl validator.FieldLevel) bool {
+		return StatusType(fl.Field().String()).IsValid()
+	})
+
+	if err != nil {
+		return err
+	}
+
+	err = v.RegisterValidation("quest_type", func(fl validator.FieldLevel) bool {
+		return QuestType(fl.Field().String()).IsValid()
+	})
+
+	return err
+}

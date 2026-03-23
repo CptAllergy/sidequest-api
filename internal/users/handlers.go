@@ -1,33 +1,37 @@
 package users
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
-	"github.com/cptallergy/sidequest-api/internal/json"
+	"github.com/cptallergy/sidequest-api/internal/lib/json"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 )
 
-type Handler struct {
-	srv *Service
+type service interface {
+	Create(ctx context.Context, user CreateUserDTO) (db.User, error)
+	GetByUsername(ctx context.Context, username string) (db.User, error)
+	List(ctx context.Context) ([]db.User, error)
 }
 
-func NewHandler(srv *Service) *Handler {
+type Handler struct {
+	srv      service
+	validate *validator.Validate
+}
+
+func NewHandler(srv service, validate *validator.Validate) *Handler {
+	// TODO handle errors
+	// TODO ensure we get helpful error messages when some validation fails
+	registerValidations(validate)
+
 	return &Handler{
-		srv: srv,
+		srv,
+		validate,
 	}
 }
-
-// TODO create DTO request types with validation
-/* TODO like this, but need to find a library for validation, maybe go-playground/validator
-type CreateQuestRequest struct {
-    // 'validate' tags define the rules
-    Name        string `json:"name" validate:"required,min=3,max=100"`
-    Description string `json:"description" validate:"required"`
-    Reward      int    `json:"reward" validate:"gte=0"`
-}
-*/
 
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 // TODO figure out pagination
@@ -63,12 +67,17 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO this one for create with password, maybe create another endpoint for create with oauth, or maybe just have the create endpoint handle both cases with different request types, need to think about this
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	// TODO will need a DTO here with a password
-	var newUser db.CreateUserParams
+	var newUser CreateUserDTO
 	if err := json.Read(r, &newUser); err != nil {
 		slog.Error("Error reading request body", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.validate.Struct(newUser)
+	if err != nil {
+		slog.Error("Error creating quest", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -85,4 +94,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func registerValidations(v *validator.Validate) error {
+	return v.RegisterValidation("provider", func(fl validator.FieldLevel) bool {
+		return ProviderType(fl.Field().String()).IsValid()
+	})
 }

@@ -15,25 +15,27 @@ type store interface {
 	ListUsers(ctx context.Context) ([]db.User, error)
 }
 
-type Service struct {
+type srv struct {
 	store store
 }
 
 // TODO for this service have some care with how to handle the password field, we don't want to return it in the List method, and we want to make sure it's hashed when creating a user
 
-func NewService(store store) *Service {
-	return &Service{store}
+func NewService(store store) service {
+	return &srv{store}
 }
 
-func (s *Service) Create(ctx context.Context, user db.CreateUserParams) (db.User, error) {
+// TODO handle different kind of provider account creation
+func (s *srv) Create(ctx context.Context, user CreateUserDTO) (db.User, error) {
 	// TODO use transaction to create user and account
-	return s.store.CreateUser(ctx, user)
+	dbUserParams := db.CreateUserParams{Email: user.Email, Username: user.Username}
+	return s.store.CreateUser(ctx, dbUserParams)
 }
 
-func (s *Service) GetByUsername(ctx context.Context, username string) (db.User, error) {
+func (s *srv) GetByUsername(ctx context.Context, username string) (db.User, error) {
 	return s.store.GetUserByUsername(ctx, username)
 }
 
-func (s *Service) List(ctx context.Context) ([]db.User, error) {
+func (s *srv) List(ctx context.Context) ([]db.User, error) {
 	return s.store.ListUsers(ctx)
 }
