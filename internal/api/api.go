@@ -23,14 +23,6 @@ type Application struct {
 type Config struct {
 	Addr string
 	Port string
-	Db   DbConfig
-}
-
-type DbConfig struct {
-	Dsn          string
-	MaxOpenConns int
-	MaxIdleConns int
-	MaxIdleTime  string
 }
 
 func (app *Application) Run(h http.Handler) error {
@@ -44,6 +36,7 @@ func (app *Application) Run(h http.Handler) error {
 		IdleTimeout:  time.Minute,
 	}
 
+	// TODO use slog
 	log.Printf("starting server on %s", app.Config.Addr)
 	return srv.ListenAndServe()
 }

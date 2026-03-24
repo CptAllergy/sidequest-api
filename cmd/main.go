@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
-
-	"strconv"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
@@ -18,42 +17,21 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	err := godotenv.Load()
-	if err != nil {
-		// TODO eventually figure out how to use env variables in a deployment, and if this should fail if there is an error when loading
-		slog.Error("Error loading .env file", "err", err)
-	}
+	_ = godotenv.Load()
 
-	// TODO handle errors
-	maxOpenDbConn, _ := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONNECTIONS"))
-	maxIdleDbConn, _ := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONNECTIONS"))
-
-	// TODO should load something into the address field of the config here
+	// TODO should load something into the address field of the config here?? probably don't need these 2 fields
 	cfg := api.Config{
-		Addr: ":" + os.Getenv("PORT"),
-		Port: os.Getenv("PORT"),
-		Db: api.DbConfig{
-			Dsn:          os.Getenv("DSN"),
-			MaxOpenConns: maxOpenDbConn,
-			MaxIdleConns: maxIdleDbConn,
-			MaxIdleTime:  os.Getenv("DB_MAX_IDLE_TIME"),
-		},
+		Addr: ":" + os.Getenv("SERVER_PORT"),
+		Port: os.Getenv("SERVER_PORT"),
 	}
 
-	connPool, err := pgxpool.New(context.Background(), cfg.Db.Dsn)
+	connPool, err := pgxpool.New(context.Background(), createDbConnString())
 	if err != nil {
 		panic(err)
 	}
 	defer connPool.Close()
 
-	// TODO should I pass these configurations to some other object?
-	//cfg.Db.Dsn,
-	//cfg.Db.MaxOpenConns,
-	//cfg.Db.MaxIdleConns,
-	//cfg.Db.MaxIdleTime,
-
 	store := db.NewStore(connPool)
-
 	app := &api.Application{
 		Config: cfg,
 		Store:  store,
@@ -63,4 +41,21 @@ func main() {
 	err = app.Run(mux)
 	slog.Error("server failed to start", err)
 	os.Exit(1)
+}
+
+// TODO check out what these configuration database values actually do
+func createDbConnString() string {
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s&pool_max_conns=%s&pool_max_conn_lifetime=%s&pool_max_conn_idle_time=%s",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSLMODE"),
+		os.Getenv("DB_POOL_MAX_CONNECTIONS"),
+		os.Getenv("DB_MAX_CONN_LIFETIME"),
+		os.Getenv("DB_MAX_IDLE_TIME"),
+	)
+
+	return connString
 }
