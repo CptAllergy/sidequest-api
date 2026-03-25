@@ -19,7 +19,7 @@ start_container:
 	docker start ${DB_DOCKER_CONTAINER}
 
 create_migrations:
-	sqlx migrate add -r init
+	goose -s create name sql
 
 migrate_up:
 	goose up
