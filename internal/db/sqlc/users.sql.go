@@ -40,6 +40,39 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const createUserAccount = `-- name: CreateUserAccount :one
+INSERT INTO user_accounts (user_id, provider, provider_user_id, password)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, provider, provider_user_id, password, created_at, updated_at
+`
+
+type CreateUserAccountParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	Provider       string      `json:"provider"`
+	ProviderUserID *string     `json:"provider_user_id"`
+	Password       []byte      `json:"password"`
+}
+
+func (q *Queries) CreateUserAccount(ctx context.Context, arg CreateUserAccountParams) (UserAccount, error) {
+	row := q.db.QueryRow(ctx, createUserAccount,
+		arg.UserID,
+		arg.Provider,
+		arg.ProviderUserID,
+		arg.Password,
+	)
+	var i UserAccount
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Provider,
+		&i.ProviderUserID,
+		&i.Password,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
 FROM users

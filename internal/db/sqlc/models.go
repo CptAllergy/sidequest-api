@@ -12,7 +12,7 @@ type Quest struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`
 	Title       string             `json:"title"`
-	Description pgtype.Text        `json:"description"`
+	Description *string            `json:"description"`
 	Type        string             `json:"type"`
 	Status      string             `json:"status"`
 	ImageUrl    string             `json:"image_url"`
@@ -34,9 +34,9 @@ type User struct {
 	ID          pgtype.UUID        `json:"id"`
 	Email       string             `json:"email"`
 	Username    string             `json:"username"`
-	DisplayName pgtype.Text        `json:"display_name"`
-	AvatarUrl   pgtype.Text        `json:"avatar_url"`
-	Bio         pgtype.Text        `json:"bio"`
+	DisplayName *string            `json:"display_name"`
+	AvatarUrl   *string            `json:"avatar_url"`
+	Bio         *string            `json:"bio"`
 	IsVerified  bool               `json:"is_verified"`
 	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
@@ -47,7 +47,7 @@ type UserAccount struct {
 	ID             pgtype.UUID        `json:"id"`
 	UserID         pgtype.UUID        `json:"user_id"`
 	Provider       string             `json:"provider"`
-	ProviderUserID pgtype.Text        `json:"provider_user_id"`
+	ProviderUserID *string            `json:"provider_user_id"`
 	Password       []byte             `json:"password"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`

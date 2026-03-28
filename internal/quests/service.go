@@ -8,6 +8,7 @@ import (
 )
 
 type store interface {
+	db.Transactor
 	CreateQuest(ctx context.Context, arg db.CreateQuestParams) (db.Quest, error)
 	GetQuest(ctx context.Context, id pgtype.UUID) (db.Quest, error)
 	ListQuests(ctx context.Context) ([]db.Quest, error)

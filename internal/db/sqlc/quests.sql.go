@@ -20,7 +20,7 @@ RETURNING id, user_id, title, description, type, status, image_url, created_at, 
 type CreateQuestParams struct {
 	UserID      pgtype.UUID `json:"user_id"`
 	Title       string      `json:"title"`
-	Description pgtype.Text `json:"description"`
+	Description *string     `json:"description"`
 	Type        string      `json:"type"`
 	Status      string      `json:"status"`
 	ImageUrl    string      `json:"image_url"`

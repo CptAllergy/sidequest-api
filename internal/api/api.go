@@ -1,7 +1,7 @@
 package api
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -22,12 +22,10 @@ type Application struct {
 
 type Config struct {
 	Addr string
-	Port string
 }
 
 func (app *Application) Run(h http.Handler) error {
 	srv := &http.Server{
-		// TODO this was ":port" before, but probs better to load from the config like this
 		Addr:    app.Config.Addr,
 		Handler: h,
 		// TODO think about these values, maybe make them configurable in the config struct
@@ -36,8 +34,7 @@ func (app *Application) Run(h http.Handler) error {
 		IdleTimeout:  time.Minute,
 	}
 
-	// TODO use slog
-	log.Printf("starting server on %s", app.Config.Addr)
+	slog.Info("starting server", "addr", app.Config.Addr)
 	return srv.ListenAndServe()
 }
 

@@ -2,11 +2,11 @@ package users
 
 // TODO add required ifs for the correct fields based on what provider is set
 type CreateUserDTO struct {
-	Email          string `json:"email"  validate:"required,email"`
-	Username       string `json:"username" validate:"required"`
-	Provider       string `json:"provider" validate:"required,provider"`
-	Password       string `json:"password"`
-	ProviderUserID string `json:"provider_user_id"`
+	Email          string       `json:"email"  validate:"required,email"`
+	Username       string       `json:"username" validate:"required"`
+	Provider       ProviderType `json:"provider" validate:"required,provider"`
+	Password       string       `json:"password" validate:"required_if=Provider LOCAL,excluded_unless=Provider LOCAL"`
+	ProviderUserID string       `json:"provider_user_id" validate:"required_unless=Provider LOCAL,excluded_if=Provider LOCAL"`
 }
 
 type ProviderType string
@@ -23,4 +23,8 @@ func (p ProviderType) IsValid() bool {
 		return true
 	}
 	return false
+}
+
+func (p ProviderType) String() string {
+	return string(p)
 }

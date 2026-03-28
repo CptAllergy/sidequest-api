@@ -11,18 +11,18 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type service interface {
+type Service interface {
 	Create(ctx context.Context, user CreateUserDTO) (db.User, error)
 	GetByUsername(ctx context.Context, username string) (db.User, error)
 	List(ctx context.Context) ([]db.User, error)
 }
 
 type Handler struct {
-	srv      service
+	srv      Service
 	validate *validator.Validate
 }
 
-func NewHandler(srv service, validate *validator.Validate) *Handler {
+func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	// TODO handle errors
 	// TODO ensure we get helpful error messages when some validation fails
 	registerValidations(validate)
@@ -77,14 +77,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	err := h.validate.Struct(newUser)
 	if err != nil {
-		slog.Error("Error creating quest", "error", err)
+		slog.Error("Error creating user", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	createdQuest, err := h.srv.Create(r.Context(), newUser)
+	// TODO handle conflict error
 	if err != nil {
-		slog.Error("Error creating quest", "error", err)
+		slog.Error("Error creating user", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

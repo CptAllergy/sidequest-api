@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -10,11 +11,10 @@ import (
 type Store interface {
 	Querier
 	Transactor
-	TestTx(ctx context.Context, arg int) (int, error)
 }
 
 type Transactor interface {
-	ExecTx(ctx context.Context, fn func(*Queries) error) error
+	ExecTx(ctx context.Context, fn func(Querier) error) error
 }
 
 // SQLStore provides all functions to execute SQL queries and transactions
@@ -29,4 +29,11 @@ func NewStore(connPool *pgxpool.Pool) Store {
 		connPool: connPool,
 		Queries:  New(connPool),
 	}
+}
+
+func (s *SQLStore) ExecTx(ctx context.Context, fn func(Querier) error) error {
+	return pgx.BeginFunc(ctx, s.connPool, func(tx pgx.Tx) error {
+		qtx := s.Queries.WithTx(tx)
+		return fn(qtx)
+	})
 }

@@ -1,5 +1,6 @@
 package quests
 
+// TODO use this in handler instead
 type CreateQuestDTO struct {
 	UserID      string `json:"user_id" validate:"required,uuid4"`
 	Title       string `json:"title" validate:"required"`

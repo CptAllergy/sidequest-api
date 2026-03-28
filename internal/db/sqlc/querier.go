@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateUserAccount(ctx context.Context, arg CreateUserAccountParams) (UserAccount, error)
 	GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserById(ctx context.Context, id pgtype.UUID) (User, error)

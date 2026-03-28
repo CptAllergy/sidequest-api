@@ -21,3 +21,8 @@ WHERE email = $1;
 INSERT INTO users (email, username)
 VALUES ($1, $2)
 RETURNING *;
+
+-- name: CreateUserAccount :one
+INSERT INTO user_accounts (user_id, provider, provider_user_id, password)
+VALUES ($1, $2, $3, $4)
+RETURNING *;

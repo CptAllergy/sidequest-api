@@ -36,6 +36,8 @@ func TestCreateUserHandler_InvalidEmail(t *testing.T) {
 	}
 }
 
+// TODO should add more validation tests, and also test error responses
+
 type MockUserService struct {
 	userFunc     func() (db.User, error)
 	userListFunc func() ([]db.User, error)
