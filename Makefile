@@ -42,3 +42,6 @@ stop:
 	@echo "stopping server..."
 	@-pkill -SIGTERM -f "./${SERVER_BINARY}"
 	@echo "server stopped..."
+
+test:
+	go test -v ./...

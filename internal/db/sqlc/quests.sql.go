@@ -50,6 +50,39 @@ func (q *Queries) CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest
 	return i, err
 }
 
+const createQuestEntry = `-- name: CreateQuestEntry :one
+INSERT INTO quest_entries (quest_id, user_id, type, content)
+VALUES ($1, $2, $3, $4)
+RETURNING id, quest_id, user_id, type, content, created_at, updated_at
+`
+
+type CreateQuestEntryParams struct {
+	QuestID pgtype.UUID `json:"quest_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+	Type    string      `json:"type"`
+	Content []byte      `json:"content"`
+}
+
+func (q *Queries) CreateQuestEntry(ctx context.Context, arg CreateQuestEntryParams) (QuestEntry, error) {
+	row := q.db.QueryRow(ctx, createQuestEntry,
+		arg.QuestID,
+		arg.UserID,
+		arg.Type,
+		arg.Content,
+	)
+	var i QuestEntry
+	err := row.Scan(
+		&i.ID,
+		&i.QuestID,
+		&i.UserID,
+		&i.Type,
+		&i.Content,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getQuest = `-- name: GetQuest :one
 SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
 FROM quests
@@ -71,6 +104,64 @@ func (q *Queries) GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getQuestForShare = `-- name: GetQuestForShare :one
+SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
+FROM quests
+WHERE id = $1
+FOR SHARE
+`
+
+func (q *Queries) GetQuestForShare(ctx context.Context, id pgtype.UUID) (Quest, error) {
+	row := q.db.QueryRow(ctx, getQuestForShare, id)
+	var i Quest
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Description,
+		&i.Type,
+		&i.Status,
+		&i.ImageUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listQuestEntries = `-- name: ListQuestEntries :many
+SELECT id, quest_id, user_id, type, content, created_at, updated_at
+FROM quest_entries
+WHERE quest_id = $1
+`
+
+func (q *Queries) ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]QuestEntry, error) {
+	rows, err := q.db.Query(ctx, listQuestEntries, questID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []QuestEntry{}
+	for rows.Next() {
+		var i QuestEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.QuestID,
+			&i.UserID,
+			&i.Type,
+			&i.Content,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listQuests = `-- name: ListQuests :many

@@ -12,12 +12,16 @@ import (
 
 type Querier interface {
 	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
+	CreateQuestEntry(ctx context.Context, arg CreateQuestEntryParams) (QuestEntry, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserAccount(ctx context.Context, arg CreateUserAccountParams) (UserAccount, error)
 	GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error)
+	GetQuestForShare(ctx context.Context, id pgtype.UUID) (Quest, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserById(ctx context.Context, id pgtype.UUID) (User, error)
+	GetUserByIdForShare(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]QuestEntry, error)
 	ListQuests(ctx context.Context) ([]Quest, error)
 	ListUsers(ctx context.Context) ([]User, error)
 }

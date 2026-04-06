@@ -7,6 +7,12 @@ SELECT *
 FROM users
 WHERE id = $1;
 
+-- name: GetUserByIdForShare :one
+SELECT *
+FROM users
+WHERE id = $1
+FOR SHARE;
+
 -- name: GetUserByUsername :one
 SELECT *
 FROM users

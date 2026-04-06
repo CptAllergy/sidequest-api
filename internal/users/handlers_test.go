@@ -12,6 +12,7 @@ import (
 )
 
 // TODO finish up tests, handler tests should focus on sad path input validations
+// TODO can use that test array pattern for testing multiple validation cases
 func TestCreateUserHandler_InvalidEmail(t *testing.T) {
 	// 1. Setup
 	validate := validation.SetupValidator()
@@ -23,7 +24,7 @@ func TestCreateUserHandler_InvalidEmail(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	body := `{"email": "not-an-email", "username": "alex"}`
+	body := `{"email": "not-an-email", "username": "testUser"}`
 	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
 	res := httptest.NewRecorder()
 

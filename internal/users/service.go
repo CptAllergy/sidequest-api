@@ -27,11 +27,7 @@ func NewService(store store) Service {
 	return &srv{store}
 }
 
-// TODO handle different kind of provider account creation
 func (s *srv) Create(ctx context.Context, user CreateUserDTO) (db.User, error) {
-	// TODO use transaction to create user and account
-	// TODO rollback if some error
-
 	var (
 		passwordBytes  []byte
 		providerUserID *string
@@ -42,7 +38,7 @@ func (s *srv) Create(ctx context.Context, user CreateUserDTO) (db.User, error) {
 		passwordBytes = []byte(user.Password)
 		providerUserID = nil
 	} else {
-		// TODO validate idToken
+		// TODO validate idToken per provider
 		passwordBytes = nil
 		providerUserID = &user.ProviderUserID
 	}

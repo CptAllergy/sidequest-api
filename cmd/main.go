@@ -23,7 +23,7 @@ func main() {
 
 	connPool, err := pgxpool.New(context.Background(), config.CreateDbConnString())
 	if err != nil {
-		slog.Error("database connection failed", err)
+		slog.Error("database connection failed", "error", err)
 		os.Exit(1)
 	}
 	defer connPool.Close()
@@ -35,6 +35,6 @@ func main() {
 
 	mux := app.Mount()
 	err = app.Run(mux)
-	slog.Error("server failed to start", err)
+	slog.Error("server failed to start", "error", err)
 	os.Exit(1)
 }

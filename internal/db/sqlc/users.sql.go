@@ -121,6 +121,31 @@ func (q *Queries) GetUserById(ctx context.Context, id pgtype.UUID) (User, error)
 	return i, err
 }
 
+const getUserByIdForShare = `-- name: GetUserByIdForShare :one
+SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+FROM users
+WHERE id = $1
+FOR SHARE
+`
+
+func (q *Queries) GetUserByIdForShare(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByIdForShare, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
 FROM users

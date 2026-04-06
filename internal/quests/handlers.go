@@ -1,6 +1,7 @@
 package quests
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -58,6 +59,41 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = json.Write(w, http.StatusOK, createdQuest)
+	if err != nil {
+		slog.Error("Error writing response", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
+	// TODO use entry DTO
+	var newEntry db.CreateQuestEntryParams
+	if err := json.Read(r, &newEntry); err != nil {
+		slog.Error("Error reading request body", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	createdEntry, err := h.srv.CreateEntry(r.Context(), newEntry)
+	if err != nil {
+		slog.Error("Error creating quest entry", "error", err)
+
+		// TODO check warning and pull out condition for less nesting
+		if errors.Is(err, ErrNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		if errors.Is(err, ErrForbidden) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	err = json.Write(w, http.StatusOK, createdEntry)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
