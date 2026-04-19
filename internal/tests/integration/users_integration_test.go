@@ -77,6 +77,7 @@ func TestCreateUser(t *testing.T) {
 			require.NoError(t, restoreErr)
 		})
 
+		// TODO create a single pool or one per test?
 		connPool, err := pgxpool.New(context.Background(), dbURL)
 		require.NoError(t, err)
 		defer connPool.Close()

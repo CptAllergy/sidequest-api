@@ -1,6 +1,5 @@
 package users
 
-// TODO add required ifs for the correct fields based on what provider is set
 type CreateUserDTO struct {
 	Email          string       `json:"email"  validate:"required,email"`
 	Username       string       `json:"username" validate:"required"`
