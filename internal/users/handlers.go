@@ -12,7 +12,7 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, user CreateUserDTO) (db.User, error)
+	Create(ctx context.Context, user CreateUserDto) (db.User, error)
 	GetByUsername(ctx context.Context, username string) (db.User, error)
 	List(ctx context.Context) ([]db.User, error)
 }
@@ -68,7 +68,7 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var newUser CreateUserDTO
+	var newUser CreateUserDto
 	if err := json.Read(r, &newUser); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

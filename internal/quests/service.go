@@ -24,25 +24,26 @@ var (
 	ErrForbidden = errors.New("user does not have permission to perform this action")
 )
 
-type Service struct {
+type srv struct {
 	store store
 }
 
-func NewService(store store) *Service {
-	return &Service{store: store}
+func NewService(store store) Service {
+	return &srv{store: store}
 }
 
-func (s *Service) List(ctx context.Context) ([]db.Quest, error) {
+func (s *srv) List(ctx context.Context) ([]db.Quest, error) {
 	return s.store.ListQuests(ctx)
 }
 
-func (s *Service) Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error) {
+func (s *srv) Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error) {
 	// TODO get userId from auth token
+	// TODO look into cloudflare R2 for images
 
 	return s.store.CreateQuest(ctx, quest)
 }
 
-func (s *Service) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error) {
+func (s *srv) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error) {
 	var savedEntry db.QuestEntry
 	err := s.store.ExecTx(ctx, func(qtx db.Querier) error {
 		quest, txErr := qtx.GetQuestForShare(ctx, entry.QuestID)

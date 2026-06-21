@@ -1,13 +1,13 @@
 package quests
 
-// TODO use this in handler instead
-type CreateQuestDTO struct {
-	UserID      string `json:"user_id" validate:"required,uuid4"`
+// TODO userId should come from the token
+type CreateQuestDto struct {
+	UserID      string `json:"userId" validate:"required,uuid4"`
 	Title       string `json:"title" validate:"required"`
 	Description string `json:"description"`
-	Type        string `json:"type" validate:"required"`
+	Type        string `json:"type" validate:"required,quest_type"`
 	Status      string `json:"status" validate:"required,quest_status"`
-	ImageUrl    string `json:"image_url"`
+	ImageUrl    string `json:"imageUrl"`
 }
 
 type StatusType string

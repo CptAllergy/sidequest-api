@@ -1,6 +1,6 @@
 package users
 
-type CreateUserDTO struct {
+type CreateUserDto struct {
 	Email          string       `json:"email"  validate:"required,email"`
 	Username       string       `json:"username" validate:"required"`
 	Provider       ProviderType `json:"provider" validate:"required,provider"`
