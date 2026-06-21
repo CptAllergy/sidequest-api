@@ -1,6 +1,7 @@
 package quests
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -8,14 +9,21 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/json"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Service interface {
+	Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error)
+	CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error)
+	List(ctx context.Context) ([]db.Quest, error)
+}
+
 type Handler struct {
-	srv      *Service
+	srv      Service
 	validate *validator.Validate
 }
 
-func NewHandler(srv *Service, validate *validator.Validate) *Handler {
+func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	// TODO handle errors
 	// TODO ensure we get helpful error messages when some validation fails
 	registerValidations(validate)
@@ -45,14 +53,37 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var newQuest db.CreateQuestParams
-	if err := json.Read(r, &newQuest); err != nil {
+	var createQuestDto CreateQuestDto
+	if err := json.Read(r, &createQuestDto); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	createdQuest, err := h.srv.Create(r.Context(), newQuest)
+	err := h.validate.Struct(createQuestDto)
+	if err != nil {
+		slog.Error("Error creating quest", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var pgUserID pgtype.UUID
+	if err := pgUserID.Scan(createQuestDto.UserID); err != nil {
+		slog.Error("Invalid UserID UUID format", "error", err)
+		http.Error(w, "invalid user id format", http.StatusBadRequest)
+		return
+	}
+
+	createQuestParams := db.CreateQuestParams{
+		UserID:      pgUserID,
+		Title:       createQuestDto.Title,
+		Description: &createQuestDto.Description,
+		Type:        createQuestDto.Type,
+		Status:      createQuestDto.Status,
+		ImageUrl:    createQuestDto.ImageUrl,
+	}
+
+	createdQuest, err := h.srv.Create(r.Context(), createQuestParams)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

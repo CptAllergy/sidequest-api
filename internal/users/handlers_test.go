@@ -28,7 +28,7 @@ func TestCreateUserOk(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	user := CreateUserDTO{
+	user := CreateUserDto{
 		Email:          "mail@test.com",
 		Username:       "username",
 		Provider:       "LOCAL",
@@ -51,10 +51,10 @@ func TestCreateUserOk(t *testing.T) {
 func TestCreateUserBadRequest(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
-		user CreateUserDTO
+		user CreateUserDto
 	}{
 		"empty": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "",
 				Username:       "",
 				Provider:       "",
@@ -63,7 +63,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"missing email": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "",
 				Username:       "username",
 				Provider:       "LOCAL",
@@ -72,7 +72,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"invalid email format": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "not-an-email",
 				Username:       "username",
 				Provider:       "LOCAL",
@@ -81,7 +81,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"missing username": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "",
 				Provider:       "LOCAL",
@@ -90,7 +90,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"missing provider": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "",
@@ -99,7 +99,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"invalid provider": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "invalid-provider",
@@ -108,7 +108,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"password and providerUserId both present when LOCAL": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "LOCAL",
@@ -117,7 +117,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"password and providerUserId both present when not LOCAL": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "GOOGLE",
@@ -126,7 +126,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"neither password nor providerUserId present when LOCAL": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "LOCAL",
@@ -135,7 +135,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"neither password nor providerUserId present when not LOCAL": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "GOOGLE",
@@ -144,7 +144,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"missing providerUserId with password present when not LOCAL": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "GOOGLE",
@@ -153,7 +153,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 			},
 		},
 		"missing password with providerUserId present when LOCAL": {
-			user: CreateUserDTO{
+			user: CreateUserDto{
 				Email:          "mail@test.com",
 				Username:       "username",
 				Provider:       "LOCAL",
@@ -198,7 +198,7 @@ func TestCreateUserInternalServerError(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	user := CreateUserDTO{
+	user := CreateUserDto{
 		Email:          "mail@test.com",
 		Username:       "username",
 		Provider:       "LOCAL",
@@ -218,13 +218,13 @@ func TestCreateUserInternalServerError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, res.Code)
 }
 
-// TODO add tests for other handlers
+// TODO add tests for other operations
 
 type MockUserService struct {
 	mock.Mock
 }
 
-func (m *MockUserService) Create(ctx context.Context, user CreateUserDTO) (db.User, error) {
+func (m *MockUserService) Create(ctx context.Context, user CreateUserDto) (db.User, error) {
 	args := m.Called(ctx, user)
 	return args.Get(0).(db.User), args.Error(1)
 }

@@ -27,7 +27,7 @@ func NewService(store store) Service {
 	return &srv{store}
 }
 
-func (s *srv) Create(ctx context.Context, user CreateUserDTO) (db.User, error) {
+func (s *srv) Create(ctx context.Context, user CreateUserDto) (db.User, error) {
 	var (
 		passwordBytes  []byte
 		providerUserID *string
