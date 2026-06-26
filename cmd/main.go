@@ -22,6 +22,7 @@ func main() {
 	}
 
 	connPool, err := pgxpool.New(context.Background(), config.CreateDbConnString())
+	// TODO seems like this is not erroring when database connection fails
 	if err != nil {
 		slog.Error("database connection failed", "error", err)
 		os.Exit(1)

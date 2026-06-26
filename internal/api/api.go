@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/cptallergy/sidequest-api/internal/lib/validation"
 	"github.com/cptallergy/sidequest-api/internal/quests"
 	"github.com/cptallergy/sidequest-api/internal/users"
@@ -13,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-playground/validator/v10"
+	"github.com/supertokens/supertokens-golang/supertokens"
 )
 
 type Application struct {
@@ -41,6 +43,13 @@ func (app *Application) Run(h http.Handler) error {
 func (app *Application) Mount() http.Handler {
 	r := chi.NewRouter()
 
+	// Initialize auth config
+	err := supertokens.Init(config.SuperTokensConfig)
+	// TODO check this error setup
+	if err != nil {
+		panic(err.Error())
+	}
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -49,13 +58,17 @@ func (app *Application) Mount() http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*"},
-		AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		// TODO restrict this rule, probs use some env variable
+		AllowedOrigins: []string{"https://*", "http://*"},
+		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: append([]string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			supertokens.GetAllCORSHeaders()...),
 		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true, // TODO maybe change to false if not needed
+		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+
+	r.Use(supertokens.Middleware)
 
 	validate := validation.SetupValidator()
 	app.mountQuests(r, validate)
