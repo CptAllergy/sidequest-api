@@ -23,7 +23,8 @@ type Application struct {
 }
 
 type Config struct {
-	Addr string
+	Addr           string
+	AllowedOrigins []string
 }
 
 func (app *Application) Run(h http.Handler) error {
@@ -58,8 +59,7 @@ func (app *Application) Mount() http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Use(cors.Handler(cors.Options{
-		// TODO restrict this rule, probs use some env variable
-		AllowedOrigins: []string{"https://*", "http://*"},
+		AllowedOrigins: app.Config.AllowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: append([]string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 			supertokens.GetAllCORSHeaders()...),

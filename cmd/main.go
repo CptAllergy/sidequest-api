@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
@@ -12,13 +13,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// TODO failed to connect is responding with db address in cleartext, make sure to mask that
 func main() {
 	config.SetupLogger()
 
 	_ = godotenv.Load()
 
+	// TODO consider moving config setup into config package
+	corsEnv := os.Getenv("ALLOWED_ORIGINS")
+	allowedOrigins := strings.Split(corsEnv, ",")
+
 	cfg := api.Config{
-		Addr: ":" + os.Getenv("SERVER_PORT"),
+		Addr:           ":" + os.Getenv("SERVER_PORT"),
+		AllowedOrigins: allowedOrigins,
 	}
 
 	connPool, err := pgxpool.New(context.Background(), config.CreateDbConnString())
