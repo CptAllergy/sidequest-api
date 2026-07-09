@@ -7,16 +7,21 @@ import (
 	"strings"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
+	"github.com/cptallergy/sidequest-api/internal/db/migrations"
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
+	"github.com/pressly/goose/v3"
 )
 
 // TODO failed to connect is responding with db address in cleartext, make sure to mask that
+
 func main() {
 	config.SetupLogger()
 
+	// TODO restructure this initial setup a bit more
 	_ = godotenv.Load()
 
 	// TODO consider moving config setup into config package
@@ -35,6 +40,21 @@ func main() {
 		os.Exit(1)
 	}
 	defer connPool.Close()
+
+	gooseDb, err := goose.OpenDBWithDriver("pgx", config.CreateBasicDbConnString())
+	if err != nil {
+		panic(err)
+	}
+
+	goose.SetBaseFS(migrations.FS)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		panic(err)
+	}
+
+	if err := goose.Up(gooseDb, "."); err != nil {
+		panic(err)
+	}
 
 	app := &api.Application{
 		Config: cfg,
