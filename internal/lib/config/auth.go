@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/supertokens/supertokens-golang/recipe/dashboard"
 	"github.com/supertokens/supertokens-golang/recipe/emailpassword"
@@ -15,32 +15,30 @@ func getStringPointer(s string) *string {
 }
 
 func getApiDomain() string {
-	apiPort := "8080"
-	apiUrl := fmt.Sprintf("http://localhost:%s", apiPort)
-	return apiUrl
+	return os.Getenv("API_URL")
 }
 
 func getWebsiteDomain() string {
-	websitePort := "3000"
-	websiteUrl := fmt.Sprintf("http://localhost:%s", websitePort)
-	return websiteUrl
+	return os.Getenv("WEBSITE_URL")
 }
 
-var SuperTokensConfig = supertokens.TypeInput{
-	Supertokens: &supertokens.ConnectionInfo{
-		ConnectionURI: "https://try.supertokens.com",
-	},
-	AppInfo: supertokens.AppInfo{
-		AppName:         "Sidequest",
-		APIDomain:       getApiDomain(),
-		WebsiteDomain:   getWebsiteDomain(),
-		APIBasePath:     getStringPointer("/auth"),
-		WebsiteBasePath: getStringPointer("/auth"),
-	},
-	RecipeList: []supertokens.Recipe{
-		emailpassword.Init(nil),
-		session.Init(nil),
-		dashboard.Init(nil),
-		userroles.Init(nil),
-	},
+func GetSuperTokensConfig() supertokens.TypeInput {
+	return supertokens.TypeInput{
+		Supertokens: &supertokens.ConnectionInfo{
+			ConnectionURI: os.Getenv("SUPERTOKENS_URL"),
+		},
+		AppInfo: supertokens.AppInfo{
+			AppName:         "Sidequest",
+			APIDomain:       getApiDomain(),
+			WebsiteDomain:   getWebsiteDomain(),
+			APIBasePath:     getStringPointer("/auth"),
+			WebsiteBasePath: getStringPointer("/auth"),
+		},
+		RecipeList: []supertokens.Recipe{
+			emailpassword.Init(nil),
+			session.Init(nil),
+			dashboard.Init(nil),
+			userroles.Init(nil),
+		},
+	}
 }

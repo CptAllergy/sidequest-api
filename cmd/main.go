@@ -52,6 +52,7 @@ func main() {
 		panic(err)
 	}
 
+	// goose base FS is already in migrations package "."
 	if err := goose.Up(gooseDb, "."); err != nil {
 		panic(err)
 	}

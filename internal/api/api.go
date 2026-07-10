@@ -45,7 +45,7 @@ func (app *Application) Mount() http.Handler {
 	r := chi.NewRouter()
 
 	// Initialize auth config
-	err := supertokens.Init(config.SuperTokensConfig)
+	err := supertokens.Init(config.GetSuperTokensConfig())
 	// TODO check this error setup
 	if err != nil {
 		panic(err.Error())
