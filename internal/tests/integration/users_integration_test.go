@@ -35,6 +35,12 @@ func setupTestDatabase(t *testing.T, ctx context.Context) (*postgres.PostgresCon
 	t.Setenv("DB_NAME", dbName)
 	t.Setenv("DB_SSLMODE", dbSslMode)
 
+	// TODO think about removing supertokens logic from test setup
+	// TODO define these values up there
+	t.Setenv("API_URL", "http://localhost:8080")
+	t.Setenv("WEBSITE_URL", "http://localhost:3000")
+	t.Setenv("SUPERTOKENS_URL", "https://try.supertokens.com")
+
 	ctr, err := postgres.Run(ctx,
 		"postgres:16-alpine",
 		postgres.WithDatabase(dbName),
