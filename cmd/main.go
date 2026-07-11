@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
 	"github.com/cptallergy/sidequest-api/internal/db/migrations"
@@ -23,15 +22,6 @@ func main() {
 
 	// TODO restructure this initial setup a bit more
 	_ = godotenv.Load()
-
-	// TODO consider moving config setup into config package
-	corsEnv := os.Getenv("ALLOWED_ORIGINS")
-	allowedOrigins := strings.Split(corsEnv, ",")
-
-	cfg := api.Config{
-		Addr:           ":" + os.Getenv("SERVER_PORT"),
-		AllowedOrigins: allowedOrigins,
-	}
 
 	connPool, err := pgxpool.New(context.Background(), config.CreateDbConnString())
 	// TODO seems like this is not erroring when database connection fails
@@ -58,7 +48,7 @@ func main() {
 	}
 
 	app := &api.Application{
-		Config: cfg,
+		Config: config.CreateAppConfig(),
 		Store:  db.NewStore(connPool),
 	}
 

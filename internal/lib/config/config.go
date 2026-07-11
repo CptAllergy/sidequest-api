@@ -4,7 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 )
+
+type Config struct {
+	Addr           string
+	AllowedOrigins []string
+}
 
 // TODO check out what these configuration database values actually do
 func CreateDbConnString() string {
@@ -34,6 +40,16 @@ func CreateBasicDbConnString() string {
 	)
 
 	return connString
+}
+
+func CreateAppConfig() Config {
+	corsEnv := os.Getenv("ALLOWED_ORIGINS")
+	allowedOrigins := strings.Split(corsEnv, ",")
+
+	return Config{
+		Addr:           ":" + os.Getenv("SERVER_PORT"),
+		AllowedOrigins: allowedOrigins,
+	}
 }
 
 // TODO make the logs look nicer

@@ -6,7 +6,8 @@ import (
 	"github.com/supertokens/supertokens-golang/recipe/dashboard"
 	"github.com/supertokens/supertokens-golang/recipe/emailpassword"
 	"github.com/supertokens/supertokens-golang/recipe/session"
-	"github.com/supertokens/supertokens-golang/recipe/userroles"
+	"github.com/supertokens/supertokens-golang/recipe/thirdparty"
+	"github.com/supertokens/supertokens-golang/recipe/thirdparty/tpmodels"
 	"github.com/supertokens/supertokens-golang/supertokens"
 )
 
@@ -20,6 +21,24 @@ func getApiDomain() string {
 
 func getWebsiteDomain() string {
 	return os.Getenv("WEBSITE_URL")
+}
+
+func getThirdPartyConfig() tpmodels.TypeInputSignInAndUp {
+	return tpmodels.TypeInputSignInAndUp{
+		Providers: []tpmodels.ProviderInput{
+			{
+				Config: tpmodels.ProviderConfig{
+					ThirdPartyId: "google",
+					Clients: []tpmodels.ProviderClientConfig{
+						{
+							ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+							ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 func GetSuperTokensConfig() supertokens.TypeInput {
@@ -36,9 +55,11 @@ func GetSuperTokensConfig() supertokens.TypeInput {
 		},
 		RecipeList: []supertokens.Recipe{
 			emailpassword.Init(nil),
+			thirdparty.Init(&tpmodels.TypeInput{
+				SignInAndUpFeature: getThirdPartyConfig(),
+			}),
 			session.Init(nil),
 			dashboard.Init(nil),
-			userroles.Init(nil),
 		},
 	}
 }

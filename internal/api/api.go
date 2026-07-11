@@ -14,17 +14,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-playground/validator/v10"
+	"github.com/supertokens/supertokens-golang/recipe/session"
 	"github.com/supertokens/supertokens-golang/supertokens"
 )
 
 type Application struct {
-	Config Config
+	Config config.Config
 	Store  db.Store
-}
-
-type Config struct {
-	Addr           string
-	AllowedOrigins []string
 }
 
 func (app *Application) Run(h http.Handler) error {
@@ -81,8 +77,9 @@ func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) 
 	questService := quests.NewService(app.Store)
 	questHandler := quests.NewHandler(questService, validate)
 	r.Route("/api/v1/quests", func(r chi.Router) {
-		r.Get("/", questHandler.List)
-		r.Post("/", questHandler.Create)
+		// TODO check this works
+		r.Get("/", session.VerifySession(nil, questHandler.List))
+		r.Post("/", session.VerifySession(nil, questHandler.Create))
 	})
 }
 
