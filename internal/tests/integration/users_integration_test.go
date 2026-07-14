@@ -10,6 +10,7 @@ import (
 
 	"github.com/cptallergy/sidequest-api/internal/api"
 	db "github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -90,7 +91,7 @@ func TestCreateUser(t *testing.T) {
 
 		store := db.NewStore(connPool)
 		app := &api.Application{
-			Config: api.Config{},
+			Config: config.Config{},
 			Store:  store,
 		}
 
