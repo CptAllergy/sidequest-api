@@ -1,30 +1,20 @@
 include .env
 
+up:
+	@echo "Starting containers in background..."
+	docker compose -f docker/docker-compose.yml up -d
+
+down:
+	@echo "Stopping and removing containers..."
+	docker compose -f docker/docker-compose.yml down
+
+start_containers:
+	@echo "Starting Docker Compose stack..."
+	docker compose -f docker/docker-compose.yml start
+
 stop_containers:
-	@echo "Stopping other docker containers"
-	if [ $$(docker ps -q) ]; then \
-  		echo "found and stopped containers"; \
-  		docker stop $$(docker ps -q); \
-	else \
-		echo "no containers running..."; \
-	fi
-
-create_network:
-	docker network create sidequest-net
-
-create_db_container:
-	docker run --name ${DB_DOCKER_CONTAINER} --network sidequest-net -p 5432:5432 -e POSTGRES_USER=${DB_USER} -e POSTGRES_PASSWORD=${DB_PASSWORD} -d postgres:18
-
-create_db:
-	docker exec -it ${DB_DOCKER_CONTAINER} createdb --username=${DB_USER} --owner=${DB_USER} ${DB_NAME}
-	docker exec -it ${DB_DOCKER_CONTAINER} createdb --username=${DB_USER} --owner=${DB_USER} ${SUPERTOKENS_DB_NAME}
-
-create_supertokens_container:
-	docker run --name ${SUPERTOKENS_DOCKER_CONTAINER} --network sidequest-net -p 3567:3567 -e POSTGRESQL_CONNECTION_URI="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_DOCKER_CONTAINER}:${DB_PORT}/${SUPERTOKENS_DB_NAME}" -d supertokens/supertokens-postgresql
-
-start_container:
-	docker start ${DB_DOCKER_CONTAINER}
-	docker start ${SUPERTOKENS_DOCKER_CONTAINER}
+	@echo "Stopping Docker Compose stack..."
+	docker compose -f docker/docker-compose.yml stop
 
 create_migrations:
 	goose -s create name sql
