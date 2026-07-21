@@ -67,6 +67,13 @@ func setupTestDatabase(t *testing.T, ctx context.Context) (*postgres.PostgresCon
 	return ctr, dbURL
 }
 
+func dummyMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Just pass through to the next handler
+		next.ServeHTTP(w, r)
+	})
+}
+
 func TestCreateUser(t *testing.T) {
 	ctx := context.Background()
 	ctr, dbURL := setupTestDatabase(t, ctx)
@@ -85,8 +92,9 @@ func TestCreateUser(t *testing.T) {
 
 		store := db.NewStore(connPool)
 		app := &api.Application{
-			Config: config.Config{},
-			Store:  store,
+			Config:         config.Config{},
+			Store:          store,
+			AuthMiddleware: dummyMiddleware,
 		}
 
 		testServer := httptest.NewServer(app.Mount())
