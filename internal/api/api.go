@@ -14,13 +14,12 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-playground/validator/v10"
-	"github.com/supertokens/supertokens-golang/recipe/session"
-	"github.com/supertokens/supertokens-golang/supertokens"
 )
 
 type Application struct {
-	Config config.Config
-	Store  db.Store
+	Config         config.Config
+	Store          db.Store
+	AuthMiddleware func(http.Handler) http.Handler
 }
 
 func (app *Application) Run(h http.Handler) error {
@@ -40,14 +39,8 @@ func (app *Application) Run(h http.Handler) error {
 func (app *Application) Mount() http.Handler {
 	r := chi.NewRouter()
 
-	// Initialize auth config
-	err := supertokens.Init(config.GetSuperTokensConfig())
-	// TODO check this error setup
-	if err != nil {
-		panic(err.Error())
-	}
-
 	r.Use(middleware.RequestID)
+	// TODO check deprecated
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -55,16 +48,13 @@ func (app *Application) Mount() http.Handler {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: app.Config.AllowedOrigins,
-		AllowedMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: append([]string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-			supertokens.GetAllCORSHeaders()...),
+		AllowedOrigins:   app.Config.AllowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   append([]string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"}),
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-
-	r.Use(supertokens.Middleware)
 
 	validate := validation.SetupValidator()
 	app.mountQuests(r, validate)
@@ -77,9 +67,9 @@ func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) 
 	questService := quests.NewService(app.Store)
 	questHandler := quests.NewHandler(questService, validate)
 	r.Route("/api/v1/quests", func(r chi.Router) {
-		// TODO check this works
-		r.Get("/", session.VerifySession(nil, questHandler.List))
-		r.Post("/", session.VerifySession(nil, questHandler.Create))
+		r.Use(app.AuthMiddleware)
+		r.Get("/", questHandler.List)
+		r.Post("/", questHandler.Create)
 	})
 }
 
@@ -89,6 +79,6 @@ func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 	r.Route("/api/v1/users", func(r chi.Router) {
 		r.Get("/{username}", userHandler.GetByUsername)
 		r.Get("/", userHandler.List)
-		r.Post("/", userHandler.Create)
+		r.With(app.AuthMiddleware).Post("/", userHandler.Create)
 	})
 }

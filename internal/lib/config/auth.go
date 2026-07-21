@@ -1,65 +1,26 @@
 package config
 
 import (
+	"context"
+	"net/http"
 	"os"
 
-	"github.com/supertokens/supertokens-golang/recipe/dashboard"
-	"github.com/supertokens/supertokens-golang/recipe/emailpassword"
-	"github.com/supertokens/supertokens-golang/recipe/session"
-	"github.com/supertokens/supertokens-golang/recipe/thirdparty"
-	"github.com/supertokens/supertokens-golang/recipe/thirdparty/tpmodels"
-	"github.com/supertokens/supertokens-golang/supertokens"
+	"github.com/zitadel/zitadel-go/v3/pkg/authorization"
+	"github.com/zitadel/zitadel-go/v3/pkg/authorization/oauth"
+	"github.com/zitadel/zitadel-go/v3/pkg/http/middleware"
+	"github.com/zitadel/zitadel-go/v3/pkg/zitadel"
 )
 
-func getStringPointer(s string) *string {
-	return &s
-}
+func CreateZitadelMiddleware(ctx context.Context) (func(http.Handler) http.Handler, error) {
+	clientId := os.Getenv("ZITADEL_CLIENT_ID")
+	url := os.Getenv("ZITADEL_URL")
 
-func getApiDomain() string {
-	return os.Getenv("API_URL")
-}
-
-func getWebsiteDomain() string {
-	return os.Getenv("WEBSITE_URL")
-}
-
-func getThirdPartyConfig() tpmodels.TypeInputSignInAndUp {
-	return tpmodels.TypeInputSignInAndUp{
-		Providers: []tpmodels.ProviderInput{
-			{
-				Config: tpmodels.ProviderConfig{
-					ThirdPartyId: "google",
-					Clients: []tpmodels.ProviderClientConfig{
-						{
-							ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-							ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-						},
-					},
-				},
-			},
-		},
+	// Initiate the authorization with zitadel JWT verifier
+	authZ, err := authorization.New(ctx, zitadel.New(url), oauth.DefaultJWTAuthorization(clientId))
+	if err != nil {
+		return nil, err
 	}
-}
 
-func GetSuperTokensConfig() supertokens.TypeInput {
-	return supertokens.TypeInput{
-		Supertokens: &supertokens.ConnectionInfo{
-			ConnectionURI: os.Getenv("SUPERTOKENS_URL"),
-		},
-		AppInfo: supertokens.AppInfo{
-			AppName:         "Sidequest",
-			APIDomain:       getApiDomain(),
-			WebsiteDomain:   getWebsiteDomain(),
-			APIBasePath:     getStringPointer("/auth"),
-			WebsiteBasePath: getStringPointer("/auth"),
-		},
-		RecipeList: []supertokens.Recipe{
-			emailpassword.Init(nil),
-			thirdparty.Init(&tpmodels.TypeInput{
-				SignInAndUpFeature: getThirdPartyConfig(),
-			}),
-			session.Init(nil),
-			dashboard.Init(nil),
-		},
-	}
+	mw := middleware.New(authZ)
+	return mw.RequireAuthorization(), nil
 }
