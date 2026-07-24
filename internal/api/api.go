@@ -80,5 +80,6 @@ func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 		r.Get("/{username}", userHandler.GetByUsername)
 		r.Get("/", userHandler.List)
 		r.With(app.AuthMiddleware).Post("/", userHandler.Create)
+		r.With(app.AuthMiddleware).Get("/profile", userHandler.GetProfile)
 	})
 }

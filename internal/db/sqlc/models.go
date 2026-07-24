@@ -10,7 +10,7 @@ import (
 
 type Quest struct {
 	ID          pgtype.UUID        `json:"id"`
-	UserID      pgtype.UUID        `json:"user_id"`
+	UserID      string             `json:"user_id"`
 	Title       string             `json:"title"`
 	Description *string            `json:"description"`
 	Type        string             `json:"type"`
@@ -23,7 +23,7 @@ type Quest struct {
 type QuestEntry struct {
 	ID        pgtype.UUID        `json:"id"`
 	QuestID   pgtype.UUID        `json:"quest_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
+	UserID    string             `json:"user_id"`
 	Type      string             `json:"type"`
 	Content   []byte             `json:"content"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
@@ -31,24 +31,11 @@ type QuestEntry struct {
 }
 
 type User struct {
-	ID          pgtype.UUID        `json:"id"`
-	Email       string             `json:"email"`
+	ID          string             `json:"id"`
 	Username    string             `json:"username"`
-	DisplayName *string            `json:"display_name"`
+	DisplayName string             `json:"display_name"`
 	AvatarUrl   *string            `json:"avatar_url"`
 	Bio         *string            `json:"bio"`
-	IsVerified  bool               `json:"is_verified"`
-	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-}
-
-type UserAccount struct {
-	ID             pgtype.UUID        `json:"id"`
-	UserID         pgtype.UUID        `json:"user_id"`
-	Provider       string             `json:"provider"`
-	ProviderUserID *string            `json:"provider_user_id"`
-	Password       []byte             `json:"password"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }

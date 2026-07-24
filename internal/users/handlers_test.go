@@ -29,11 +29,7 @@ func TestCreateUserOk(t *testing.T) {
 
 	// 2. Create Request
 	user := CreateUserDto{
-		Email:          "mail@test.com",
-		Username:       "username",
-		Provider:       "LOCAL",
-		Password:       "password",
-		ProviderUserID: "",
+		Username: "username",
 	}
 
 	body, err := json.Marshal(user)
@@ -53,112 +49,9 @@ func TestCreateUserBadRequest(t *testing.T) {
 	tests := map[string]struct {
 		user CreateUserDto
 	}{
-		"empty": {
-			user: CreateUserDto{
-				Email:          "",
-				Username:       "",
-				Provider:       "",
-				Password:       "",
-				ProviderUserID: "",
-			},
-		},
-		"missing email": {
-			user: CreateUserDto{
-				Email:          "",
-				Username:       "username",
-				Provider:       "LOCAL",
-				Password:       "password",
-				ProviderUserID: "",
-			},
-		},
-		"invalid email format": {
-			user: CreateUserDto{
-				Email:          "not-an-email",
-				Username:       "username",
-				Provider:       "LOCAL",
-				Password:       "password",
-				ProviderUserID: "",
-			},
-		},
 		"missing username": {
 			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "",
-				Provider:       "LOCAL",
-				Password:       "password",
-				ProviderUserID: "",
-			},
-		},
-		"missing provider": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "",
-				Password:       "password",
-				ProviderUserID: "",
-			},
-		},
-		"invalid provider": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "invalid-provider",
-				Password:       "password",
-				ProviderUserID: "",
-			},
-		},
-		"password and providerUserId both present when LOCAL": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "LOCAL",
-				Password:       "password",
-				ProviderUserID: "provider-user-id",
-			},
-		},
-		"password and providerUserId both present when not LOCAL": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "GOOGLE",
-				Password:       "password",
-				ProviderUserID: "provider-user-id",
-			},
-		},
-		"neither password nor providerUserId present when LOCAL": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "LOCAL",
-				Password:       "",
-				ProviderUserID: "",
-			},
-		},
-		"neither password nor providerUserId present when not LOCAL": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "GOOGLE",
-				Password:       "",
-				ProviderUserID: "",
-			},
-		},
-		"missing providerUserId with password present when not LOCAL": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "GOOGLE",
-				Password:       "password",
-				ProviderUserID: "",
-			},
-		},
-		"missing password with providerUserId present when LOCAL": {
-			user: CreateUserDto{
-				Email:          "mail@test.com",
-				Username:       "username",
-				Provider:       "LOCAL",
-				Password:       "",
-				ProviderUserID: "provider-user-id",
+				Username: "",
 			},
 		},
 	}
@@ -199,11 +92,7 @@ func TestCreateUserInternalServerError(t *testing.T) {
 
 	// 2. Create Request
 	user := CreateUserDto{
-		Email:          "mail@test.com",
-		Username:       "username",
-		Provider:       "LOCAL",
-		Password:       "password",
-		ProviderUserID: "",
+		Username: "username",
 	}
 
 	body, err := json.Marshal(user)
@@ -231,6 +120,11 @@ func (m *MockUserService) Create(ctx context.Context, user CreateUserDto) (db.Us
 
 func (m *MockUserService) GetByUsername(ctx context.Context, username string) (db.User, error) {
 	args := m.Called(ctx, username)
+	return args.Get(0).(db.User), args.Error(1)
+}
+
+func (m *MockUserService) GetById(ctx context.Context, id string) (db.User, error) {
+	args := m.Called(ctx, id)
 	return args.Get(0).(db.User), args.Error(1)
 }
 

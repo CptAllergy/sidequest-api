@@ -8,6 +8,7 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/api"
 	"github.com/cptallergy/sidequest-api/internal/db/migrations"
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	auth2 "github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -17,6 +18,7 @@ import (
 
 // TODO failed to connect is responding with db address in cleartext, make sure to mask that
 // TODO settle on either os.Exit or panic, don't use both
+// TODO some new middleware should also check for appropriate requests if the user already has an account. It should return forbidden if not. This value must be cached to reduce database calls
 
 func main() {
 	config.SetupLogger()
@@ -49,7 +51,7 @@ func main() {
 		panic(err)
 	}
 
-	authMiddleware, err := config.CreateZitadelMiddleware(ctx)
+	authMiddleware, err := auth2.CreateZitadelMiddleware(ctx)
 	if err != nil {
 		slog.Error("zitadel sdk could not initialize", "error", err)
 		os.Exit(1)

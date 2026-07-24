@@ -83,7 +83,7 @@ func TestCreateQuestOk(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.Code)
 }
 
-func TestCreateUserBadRequest(t *testing.T) {
+func TestCreateQuestBadRequest(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		quest CreateQuestDto
@@ -175,7 +175,7 @@ func TestCreateUserBadRequest(t *testing.T) {
 	}
 }
 
-func TestCreateUserInternalServerError(t *testing.T) {
+func TestCreateQuestInternalServerError(t *testing.T) {
 	t.Parallel()
 
 	validate := validation.SetupValidator()

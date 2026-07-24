@@ -25,6 +25,9 @@ migrate_up:
 migrate_down:
 	goose down
 
+sqlc:
+	sqlc generate
+
 build:
 	if [ -f "${SERVER_BINARY}" ]; then \
 		rm ${SERVER_BINARY}; \

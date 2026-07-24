@@ -9,7 +9,6 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/json"
 	"github.com/go-playground/validator/v10"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Service interface {
@@ -67,15 +66,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var pgUserID pgtype.UUID
-	if err := pgUserID.Scan(createQuestDto.UserID); err != nil {
-		slog.Error("Invalid UserID UUID format", "error", err)
-		http.Error(w, "invalid user id format", http.StatusBadRequest)
-		return
-	}
-
 	createQuestParams := db.CreateQuestParams{
-		UserID:      pgUserID,
+		UserID:      createQuestDto.UserID,
 		Title:       createQuestDto.Title,
 		Description: &createQuestDto.Description,
 		Type:        createQuestDto.Type,

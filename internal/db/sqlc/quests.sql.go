@@ -18,12 +18,12 @@ RETURNING id, user_id, title, description, type, status, image_url, created_at, 
 `
 
 type CreateQuestParams struct {
-	UserID      pgtype.UUID `json:"user_id"`
-	Title       string      `json:"title"`
-	Description *string     `json:"description"`
-	Type        string      `json:"type"`
-	Status      string      `json:"status"`
-	ImageUrl    string      `json:"image_url"`
+	UserID      string  `json:"user_id"`
+	Title       string  `json:"title"`
+	Description *string `json:"description"`
+	Type        string  `json:"type"`
+	Status      string  `json:"status"`
+	ImageUrl    string  `json:"image_url"`
 }
 
 func (q *Queries) CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error) {
@@ -58,7 +58,7 @@ RETURNING id, quest_id, user_id, type, content, created_at, updated_at
 
 type CreateQuestEntryParams struct {
 	QuestID pgtype.UUID `json:"quest_id"`
-	UserID  pgtype.UUID `json:"user_id"`
+	UserID  string      `json:"user_id"`
 	Type    string      `json:"type"`
 	Content []byte      `json:"content"`
 }

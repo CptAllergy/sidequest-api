@@ -7,90 +7,29 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, username)
-VALUES ($1, $2)
-RETURNING id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+INSERT INTO users (id, username, display_name)
+VALUES ($1, $2, $3)
+RETURNING id, username, display_name, avatar_url, bio, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.Username)
+	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Username, arg.DisplayName)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
 		&i.Username,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
-		&i.IsVerified,
-		&i.VerifiedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createUserAccount = `-- name: CreateUserAccount :one
-INSERT INTO user_accounts (user_id, provider, provider_user_id, password)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, provider, provider_user_id, password, created_at, updated_at
-`
-
-type CreateUserAccountParams struct {
-	UserID         pgtype.UUID `json:"user_id"`
-	Provider       string      `json:"provider"`
-	ProviderUserID *string     `json:"provider_user_id"`
-	Password       []byte      `json:"password"`
-}
-
-func (q *Queries) CreateUserAccount(ctx context.Context, arg CreateUserAccountParams) (UserAccount, error) {
-	row := q.db.QueryRow(ctx, createUserAccount,
-		arg.UserID,
-		arg.Provider,
-		arg.ProviderUserID,
-		arg.Password,
-	)
-	var i UserAccount
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Provider,
-		&i.ProviderUserID,
-		&i.Password,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
-FROM users
-WHERE email = $1
-`
-
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Username,
-		&i.DisplayName,
-		&i.AvatarUrl,
-		&i.Bio,
-		&i.IsVerified,
-		&i.VerifiedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -98,23 +37,20 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+SELECT id, username, display_name, avatar_url, bio, created_at, updated_at
 FROM users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserById(ctx context.Context, id pgtype.UUID) (User, error) {
+func (q *Queries) GetUserById(ctx context.Context, id string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserById, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
 		&i.Username,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
-		&i.IsVerified,
-		&i.VerifiedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -122,24 +58,21 @@ func (q *Queries) GetUserById(ctx context.Context, id pgtype.UUID) (User, error)
 }
 
 const getUserByIdForShare = `-- name: GetUserByIdForShare :one
-SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+SELECT id, username, display_name, avatar_url, bio, created_at, updated_at
 FROM users
 WHERE id = $1
 FOR SHARE
 `
 
-func (q *Queries) GetUserByIdForShare(ctx context.Context, id pgtype.UUID) (User, error) {
+func (q *Queries) GetUserByIdForShare(ctx context.Context, id string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByIdForShare, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
 		&i.Username,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
-		&i.IsVerified,
-		&i.VerifiedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -147,7 +80,7 @@ func (q *Queries) GetUserByIdForShare(ctx context.Context, id pgtype.UUID) (User
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+SELECT id, username, display_name, avatar_url, bio, created_at, updated_at
 FROM users
 WHERE username = $1
 `
@@ -157,13 +90,10 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
 		&i.Username,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
-		&i.IsVerified,
-		&i.VerifiedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -171,7 +101,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, username, display_name, avatar_url, bio, is_verified, verified_at, created_at, updated_at
+SELECT id, username, display_name, avatar_url, bio, created_at, updated_at
 FROM users
 `
 
@@ -186,13 +116,10 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		var i User
 		if err := rows.Scan(
 			&i.ID,
-			&i.Email,
 			&i.Username,
 			&i.DisplayName,
 			&i.AvatarUrl,
 			&i.Bio,
-			&i.IsVerified,
-			&i.VerifiedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

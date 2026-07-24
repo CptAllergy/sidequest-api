@@ -18,17 +18,7 @@ SELECT *
 FROM users
 WHERE username = $1;
 
--- name: GetUserByEmail :one
-SELECT *
-FROM users
-WHERE email = $1;
-
 -- name: CreateUser :one
-INSERT INTO users (email, username)
-VALUES ($1, $2)
-RETURNING *;
-
--- name: CreateUserAccount :one
-INSERT INTO user_accounts (user_id, provider, provider_user_id, password)
-VALUES ($1, $2, $3, $4)
+INSERT INTO users (id, username, display_name)
+VALUES ($1, $2, $3)
 RETURNING *;

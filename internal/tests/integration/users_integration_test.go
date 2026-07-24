@@ -99,9 +99,10 @@ func TestCreateUser(t *testing.T) {
 
 		testServer := httptest.NewServer(app.Mount())
 
+		// Use http to create instead of directly
 		user, err := store.CreateUser(ctx, db.CreateUserParams{
 			Username: "testuser",
-			Email:    "test@email.com",
+			ID:       "id",
 		})
 		require.NoError(t, err)
 		resp, err := http.Get(fmt.Sprintf("%s/api/v1/users/%s", testServer.URL, user.Username))
