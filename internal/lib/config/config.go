@@ -2,58 +2,156 @@ package config
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Addr           string
-	AllowedOrigins []string
+	Addr     string
+	Server   Server
+	Database Database
+	Auth     Auth
 }
 
-// TODO check out what these configuration database values actually do
-func CreateDbConnString() string {
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s&pool_max_conns=%s&pool_max_conn_lifetime=%s&pool_max_conn_idle_time=%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_SSLMODE"),
-		os.Getenv("DB_POOL_MAX_CONNECTIONS"),
-		os.Getenv("DB_MAX_CONN_LIFETIME"),
-		os.Getenv("DB_MAX_IDLE_TIME"),
-	)
-
-	return connString
+type Server struct {
+	AllowedOrigins    []string
+	WriteTimeout      time.Duration
+	ReadTimeout       time.Duration
+	IdleTimeout       time.Duration
+	MiddlewareTimeout time.Duration
 }
 
-func CreateBasicDbConnString() string {
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_SSLMODE"),
-	)
-
-	return connString
+type Database struct {
+	User     string
+	Password string
+	Host     string
+	Port     string
+	Name     string
+	SslMode  string
+	Settings Settings
 }
 
-func CreateAppConfig() Config {
-	corsEnv := os.Getenv("ALLOWED_ORIGINS")
-	allowedOrigins := strings.Split(corsEnv, ",")
+type Settings struct {
+	MaxConnections string
+	MaxLifetime    string
+	MaxIdleTime    string
+}
+
+type Auth struct {
+	ZitadelUrl          string
+	ZitadelClientId     string
+	ZitadelInsecure     bool
+	ZitadelInsecurePort string
+}
+
+func Load() (Config, error) {
+	err := godotenv.Load()
+	if err != nil {
+		return Config{}, err
+	}
+
+	server, err := loadServer()
+	if err != nil {
+		return Config{}, err
+	}
+
+	auth, err := loadAuth()
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
-		Addr:           ":" + os.Getenv("SERVER_PORT"),
-		AllowedOrigins: allowedOrigins,
-	}
+		Addr:   ":" + os.Getenv("SERVER_PORT"),
+		Server: server,
+		Database: Database{
+			User:     os.Getenv("DB_USER"),
+			Password: os.Getenv("DB_PASSWORD"),
+			Host:     os.Getenv("DB_HOST"),
+			Port:     os.Getenv("DB_PORT"),
+			Name:     os.Getenv("DB_NAME"),
+			SslMode:  os.Getenv("DB_SSLMODE"),
+			Settings: Settings{
+				MaxConnections: os.Getenv("DB_POOL_MAX_CONNECTIONS"),
+				MaxLifetime:    os.Getenv("DB_MAX_CONN_LIFETIME"),
+				MaxIdleTime:    os.Getenv("DB_MAX_IDLE_TIME"),
+			},
+		},
+		Auth: auth,
+	}, nil
 }
 
-// TODO make the logs look nicer
-func SetupLogger() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
+func loadDuration(duration string) (time.Duration, error) {
+	d, err := time.ParseDuration(duration)
+	if err != nil {
+		return 0, err
+	}
+	return d, nil
+}
+
+func loadBoolean(boolean string) (bool, error) {
+	b, err := strconv.ParseBool(boolean)
+	if err != nil {
+		return false, err
+	}
+	return b, nil
+}
+
+func loadServer() (Server, error) {
+	readTimeout, err := loadDuration(os.Getenv("SERVER_READ_TIMEOUT"))
+	if err != nil {
+		return Server{}, err
+	}
+	writeTimeout, err := loadDuration(os.Getenv("SERVER_WRITE_TIMEOUT"))
+	if err != nil {
+		return Server{}, err
+
+	}
+	idleTimeout, err := loadDuration(os.Getenv("SERVER_IDLE_TIMEOUT"))
+	if err != nil {
+		return Server{}, err
+	}
+	middlewareTimeout, err := loadDuration(os.Getenv("SERVER_MIDDLEWARE_TIMEOUT"))
+	if err != nil {
+		return Server{}, err
+	}
+
+	return Server{
+		AllowedOrigins:    strings.Split(os.Getenv("SERVER_ALLOWED_ORIGINS"), ","),
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+		MiddlewareTimeout: middlewareTimeout,
+	}, nil
+}
+
+func loadAuth() (Auth, error) {
+	zitadelInsecure, err := loadBoolean(os.Getenv("ZITADEL_INSECURE"))
+	if err != nil {
+		return Auth{}, err
+	}
+
+	return Auth{
+		ZitadelUrl:          os.Getenv("ZITADEL_URL"),
+		ZitadelClientId:     os.Getenv("ZITADEL_CLIENT_ID"),
+		ZitadelInsecure:     zitadelInsecure,
+		ZitadelInsecurePort: os.Getenv("ZITADEL_INSECURE_PORT"),
+	}, nil
+}
+
+func PrintStartupBanner() {
+	ascii := `
+   _____ _     __                           __
+  / ___/(_)___/ /__  ____ ___  _____  _____/ /_
+  \__ \/ / __  / _ \/ __ '/ / / / _ \/ ___/ __/
+ ___/ / / /_/ /  __/ /_/ / /_/ /  __(__  ) /_
+/____/_/\__,_/\___/\__, /\__,_/\___/____/\__/
+                     /_/
+
+`
+
+	fmt.Print(ascii)
 }

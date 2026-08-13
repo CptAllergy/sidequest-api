@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"net/http"
-	"os"
 
+	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/zitadel/zitadel-go/v3/pkg/authorization"
 	"github.com/zitadel/zitadel-go/v3/pkg/authorization/oauth"
 	"github.com/zitadel/zitadel-go/v3/pkg/http/middleware"
@@ -20,19 +20,15 @@ type ctxKey string
 
 const identityKey ctxKey = "auth_identity_ctx"
 
-func CreateZitadelMiddleware(ctx context.Context) (func(http.Handler) http.Handler, error) {
-	clientId := os.Getenv("ZITADEL_CLIENT_ID")
-	url := os.Getenv("ZITADEL_URL")
-	port := os.Getenv("ZITADEL_INSECURE_PORT")
-
+func NewZitadelMiddleware(ctx context.Context, auth config.Auth) (func(http.Handler) http.Handler, error) {
 	var opts []zitadel.Option
 
-	if os.Getenv("ZITADEL_INSECURE") == "true" {
-		opts = append(opts, zitadel.WithInsecure(port))
+	if auth.ZitadelInsecure {
+		opts = append(opts, zitadel.WithInsecure(auth.ZitadelInsecurePort))
 	}
 
 	// Initiate the authorization with zitadel JWT verifier
-	authZ, err := authorization.New(ctx, zitadel.New(url, opts...), oauth.DefaultJWTAuthorization(clientId))
+	authZ, err := authorization.New(ctx, zitadel.New(auth.ZitadelUrl, opts...), oauth.DefaultJWTAuthorization(auth.ZitadelClientId))
 	if err != nil {
 		return nil, err
 	}

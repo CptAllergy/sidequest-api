@@ -113,8 +113,8 @@ type MockUserService struct {
 	mock.Mock
 }
 
-func (m *MockUserService) Create(ctx context.Context, user CreateUserDto) (db.User, error) {
-	args := m.Called(ctx, user)
+func (m *MockUserService) Create(ctx context.Context, user CreateUserDto, userId string) (db.User, error) {
+	args := m.Called(ctx, user, userId)
 	return args.Get(0).(db.User), args.Error(1)
 }
 

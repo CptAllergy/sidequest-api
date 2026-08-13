@@ -6,65 +6,52 @@ import (
 	"os"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
-	"github.com/cptallergy/sidequest-api/internal/db/migrations"
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
-	auth2 "github.com/cptallergy/sidequest-api/internal/lib/auth"
+	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
-	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
-	"github.com/pressly/goose/v3"
+	"github.com/cptallergy/sidequest-api/internal/lib/database"
+	"github.com/cptallergy/sidequest-api/internal/lib/logger"
 )
 
-// TODO failed to connect is responding with db address in cleartext, make sure to mask that
-// TODO settle on either os.Exit or panic, don't use both
 // TODO some new middleware should also check for appropriate requests if the user already has an account. It should return forbidden if not. This value must be cached to reduce database calls
 
 func main() {
-	config.SetupLogger()
+	config.PrintStartupBanner()
+	logger.Load()
 	ctx := context.Background()
 
-	// TODO restructure this initial setup a bit more
-	_ = godotenv.Load()
-
-	connPool, err := pgxpool.New(ctx, config.CreateDbConnString())
-	// TODO seems like this is not erroring when database connection fails
+	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("database connection failed", "error", err)
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	connPool, err := database.NewPool(ctx, cfg.Database)
+	if err != nil {
+		slog.Error("Failed to initialize database pool", "error", err)
 		os.Exit(1)
 	}
 	defer connPool.Close()
 
-	gooseDb, err := goose.OpenDBWithDriver("pgx", config.CreateBasicDbConnString())
+	if err = database.MigrateUp(cfg.Database); err != nil {
+		slog.Error("Failed to migrate database", "error", err)
+		os.Exit(1)
+	}
+
+	authMiddleware, err := auth.NewZitadelMiddleware(ctx, cfg.Auth)
 	if err != nil {
-		panic(err)
-	}
-
-	goose.SetBaseFS(migrations.FS)
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		panic(err)
-	}
-
-	// goose base FS is already in migrations package "."
-	if err := goose.Up(gooseDb, "."); err != nil {
-		panic(err)
-	}
-
-	authMiddleware, err := auth2.CreateZitadelMiddleware(ctx)
-	if err != nil {
-		slog.Error("zitadel sdk could not initialize", "error", err)
+		slog.Error("Zitadel sdk could not initialize", "error", err)
 		os.Exit(1)
 	}
 
 	app := &api.Application{
-		Config:         config.CreateAppConfig(),
+		Config:         cfg,
 		Store:          db.NewStore(connPool),
 		AuthMiddleware: authMiddleware,
 	}
 
 	mux := app.Mount()
 	err = app.Run(mux)
-	slog.Error("server failed to start", "error", err)
+	slog.Error("Server error when running", "error", err)
 	os.Exit(1)
 }

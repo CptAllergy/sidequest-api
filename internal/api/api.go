@@ -3,7 +3,6 @@ package api
 import (
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
@@ -13,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httplog/v3"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -24,15 +24,14 @@ type Application struct {
 
 func (app *Application) Run(h http.Handler) error {
 	srv := &http.Server{
-		Addr:    app.Config.Addr,
-		Handler: h,
-		// TODO think about these values, maybe make them configurable in the config struct
-		WriteTimeout: 30 * time.Second,
-		ReadTimeout:  10 * time.Second,
-		IdleTimeout:  time.Minute,
+		Addr:         app.Config.Addr,
+		Handler:      h,
+		WriteTimeout: app.Config.Server.WriteTimeout,
+		ReadTimeout:  app.Config.Server.ReadTimeout,
+		IdleTimeout:  app.Config.Server.IdleTimeout,
 	}
 
-	slog.Info("starting server", "addr", app.Config.Addr)
+	slog.Info("Starting server", "addr", app.Config.Addr)
 	return srv.ListenAndServe()
 }
 
@@ -40,15 +39,16 @@ func (app *Application) Mount() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	// TODO check deprecated
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
 
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
+		Level:         slog.LevelInfo,
+		RecoverPanics: true,
+	}))
+
+	r.Use(middleware.Timeout(app.Config.Server.MiddlewareTimeout))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   app.Config.AllowedOrigins,
+		AllowedOrigins:   app.Config.Server.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   append([]string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"}),
 		ExposedHeaders:   []string{"Link"},

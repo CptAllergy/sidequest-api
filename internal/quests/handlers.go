@@ -33,20 +33,26 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	}
 }
 
+// TODO have good error messages for the users
+
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 // TODO figure out pagination
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	quests, err := h.srv.List(r.Context())
 	if err != nil {
 		slog.Error("Error listing quests", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	// TODO should I use an envelope for this **helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"quests": all})*** what's the point of the envelope?
 	err = json.Write(w, http.StatusOK, quests)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 }
@@ -55,14 +61,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var createQuestDto CreateQuestDto
 	if err := json.Read(r, &createQuestDto); err != nil {
 		slog.Error("Error reading request body", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	err := h.validate.Struct(createQuestDto)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -78,13 +84,17 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	createdQuest, err := h.srv.Create(r.Context(), createQuestParams)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	err = json.Write(w, http.StatusOK, createdQuest)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 }
@@ -94,7 +104,7 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	var newEntry db.CreateQuestEntryParams
 	if err := json.Read(r, &newEntry); err != nil {
 		slog.Error("Error reading request body", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -104,22 +114,26 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 
 		// TODO check warning and pull out condition for less nesting
 		if errors.Is(err, ErrNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "quest not found", http.StatusNotFound)
 			return
 		}
 
 		if errors.Is(err, ErrForbidden) {
-			http.Error(w, err.Error(), http.StatusForbidden)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	err = json.Write(w, http.StatusOK, createdEntry)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 }
