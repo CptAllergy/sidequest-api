@@ -49,10 +49,7 @@ type Auth struct {
 }
 
 func Load() (Config, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return Config{}, err
-	}
+	_ = godotenv.Load()
 
 	server, err := loadServer()
 	if err != nil {
