@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/cptallergy/sidequest-api/internal/api"
 	db "github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -74,6 +76,15 @@ func dummyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func identityMiddleware(identity auth.Identity) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := auth.SetIdentityToContext(r.Context(), identity)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func TestCreateUser(t *testing.T) {
 	ctx := context.Background()
 	ctr, dbURL := setupTestDatabase(t, ctx)
@@ -92,17 +103,25 @@ func TestCreateUser(t *testing.T) {
 
 		store := db.NewStore(connPool)
 		app := &api.Application{
-			Config:         config.Config{},
-			Store:          store,
-			AuthMiddleware: dummyMiddleware,
+			Config: config.Config{
+				Server: config.Server{
+					MiddlewareTimeout: 15 * time.Second,
+				},
+			},
+			Store: store,
+			AuthMiddleware: identityMiddleware(auth.Identity{
+				Id: "id",
+			}),
+			AccountMiddleware: dummyMiddleware,
 		}
 
 		testServer := httptest.NewServer(app.Mount())
 
 		// Use http to create instead of directly
 		user, err := store.CreateUser(ctx, db.CreateUserParams{
-			Username: "testuser",
-			ID:       "id",
+			Username:    "testuser",
+			ID:          "id",
+			DisplayName: "test",
 		})
 		require.NoError(t, err)
 		resp, err := http.Get(fmt.Sprintf("%s/api/v1/users/%s", testServer.URL, user.Username))

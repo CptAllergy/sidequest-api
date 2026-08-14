@@ -144,6 +144,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	slog.Info("User created successfully", "user_id", createdQuest.ID, "username", createdQuest.Username)
 	err = json.Write(w, http.StatusOK, createdQuest)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
