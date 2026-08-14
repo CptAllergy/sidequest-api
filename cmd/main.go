@@ -13,8 +13,6 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/lib/logger"
 )
 
-// TODO some new middleware should also check for appropriate requests if the user already has an account. It should return forbidden if not. This value must be cached to reduce database calls
-
 func main() {
 	config.PrintStartupBanner()
 	logger.Load()
@@ -44,10 +42,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	str := db.NewStore(connPool)
 	app := &api.Application{
-		Config:         cfg,
-		Store:          db.NewStore(connPool),
-		AuthMiddleware: authMiddleware,
+		Config:            cfg,
+		Store:             str,
+		AuthMiddleware:    authMiddleware,
+		AccountMiddleware: auth.NewAccountMiddleware(str),
 	}
 
 	mux := app.Mount()

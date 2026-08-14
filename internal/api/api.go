@@ -17,9 +17,10 @@ import (
 )
 
 type Application struct {
-	Config         config.Config
-	Store          db.Store
-	AuthMiddleware func(http.Handler) http.Handler
+	Config            config.Config
+	Store             db.Store
+	AuthMiddleware    func(http.Handler) http.Handler
+	AccountMiddleware func(http.Handler) http.Handler
 }
 
 func (app *Application) Run(h http.Handler) error {
@@ -42,6 +43,7 @@ func (app *Application) Mount() http.Handler {
 
 	r.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
 		Level:         slog.LevelInfo,
+		Schema:        httplog.SchemaECS.Concise(true),
 		RecoverPanics: true,
 	}))
 
@@ -68,6 +70,7 @@ func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) 
 	questHandler := quests.NewHandler(questService, validate)
 	r.Route("/api/v1/quests", func(r chi.Router) {
 		r.Use(app.AuthMiddleware)
+		r.Use(app.AccountMiddleware)
 		r.Get("/", questHandler.List)
 		r.Post("/", questHandler.Create)
 	})
@@ -76,10 +79,19 @@ func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) 
 func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 	userService := users.NewService(app.Store)
 	userHandler := users.NewHandler(userService, validate)
-	r.Route("/api/v1/users", func(r chi.Router) {
-		r.Get("/{username}", userHandler.GetByUsername)
-		r.Get("/", userHandler.List)
-		r.With(app.AuthMiddleware).Post("/", userHandler.Create)
-		r.With(app.AuthMiddleware).Get("/profile", userHandler.GetProfile)
+	r.Route("/api/v1", func(r chi.Router) {
+		// Check own account
+		r.With(app.AuthMiddleware).Get("/me", userHandler.GetMe)
+		r.Route("/users", func(r chi.Router) {
+			r.Use(app.AuthMiddleware)
+			// Create new account
+			r.Post("/", userHandler.Create)
+			r.Group(func(r chi.Router) {
+				r.Use(app.AccountMiddleware)
+				// Require full account
+				r.Get("/{username}", userHandler.GetByUsername)
+				r.Get("/", userHandler.List)
+			})
+		})
 	})
 }

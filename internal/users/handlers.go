@@ -64,6 +64,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	user, err := h.srv.GetByUsername(r.Context(), username)
+	// TODO add a not found error
 	if err != nil {
 		slog.Error("Error fetching user", "error", err)
 		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
@@ -81,14 +82,14 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	identity, ok := auth.GetIdentityFromContext(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
 		return
 	}
-	slog.Info("user_id from context", "user_id", identity)
+	slog.Warn("User has a full account, proceeding to next handler", "identity", identity)
 	user, err := h.srv.GetById(r.Context(), identity.Id)
 	if err != nil {
 		slog.Error("Error fetching user", "error", err)
