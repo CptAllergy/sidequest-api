@@ -81,37 +81,40 @@ func Load() (Config, error) {
 	}, nil
 }
 
-func loadDuration(duration string) (time.Duration, error) {
-	d, err := time.ParseDuration(duration)
+func loadDuration(name string) (time.Duration, error) {
+	value := os.Getenv(name)
+	d, err := time.ParseDuration(value)
+
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%s=%q: %w", name, value, err)
 	}
 	return d, nil
 }
 
-func loadBoolean(boolean string) (bool, error) {
-	b, err := strconv.ParseBool(boolean)
+func loadBoolean(name string) (bool, error) {
+	value := os.Getenv(name)
+	b, err := strconv.ParseBool(value)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%s=%q: %w", name, value, err)
 	}
 	return b, nil
 }
 
 func loadServer() (Server, error) {
-	readTimeout, err := loadDuration(os.Getenv("SERVER_READ_TIMEOUT"))
+	readTimeout, err := loadDuration("SERVER_READ_TIMEOUT")
 	if err != nil {
 		return Server{}, err
 	}
-	writeTimeout, err := loadDuration(os.Getenv("SERVER_WRITE_TIMEOUT"))
+	writeTimeout, err := loadDuration("SERVER_WRITE_TIMEOUT")
 	if err != nil {
 		return Server{}, err
 
 	}
-	idleTimeout, err := loadDuration(os.Getenv("SERVER_IDLE_TIMEOUT"))
+	idleTimeout, err := loadDuration("SERVER_IDLE_TIMEOUT")
 	if err != nil {
 		return Server{}, err
 	}
-	middlewareTimeout, err := loadDuration(os.Getenv("SERVER_MIDDLEWARE_TIMEOUT"))
+	middlewareTimeout, err := loadDuration("SERVER_MIDDLEWARE_TIMEOUT")
 	if err != nil {
 		return Server{}, err
 	}
@@ -126,7 +129,7 @@ func loadServer() (Server, error) {
 }
 
 func loadAuth() (Auth, error) {
-	zitadelInsecure, err := loadBoolean(os.Getenv("ZITADEL_INSECURE"))
+	zitadelInsecure, err := loadBoolean("ZITADEL_INSECURE")
 	if err != nil {
 		return Auth{}, err
 	}
