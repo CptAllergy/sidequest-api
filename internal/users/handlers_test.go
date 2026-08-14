@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/validation"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ func TestCreateUserOk(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockUserService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(db.User{}, nil)
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.User{}, nil)
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
@@ -34,7 +35,11 @@ func TestCreateUserOk(t *testing.T) {
 
 	body, err := json.Marshal(user)
 	require.NoError(t, err)
+
 	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewReader(body))
+	ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+	req = req.WithContext(ctx)
+
 	res := httptest.NewRecorder()
 
 	// 3. Execute
@@ -59,7 +64,6 @@ func TestCreateUserBadRequest(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockUserService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(db.User{}, nil)
 	h := NewHandler(mockService, validate)
 
 	for name, tt := range tests {
@@ -70,6 +74,8 @@ func TestCreateUserBadRequest(t *testing.T) {
 			body, err := json.Marshal(tt.user)
 			require.NoError(t, err)
 			req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewReader(body))
+			ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+			req = req.WithContext(ctx)
 			res := httptest.NewRecorder()
 
 			// 3. Execute
@@ -87,7 +93,7 @@ func TestCreateUserInternalServerError(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockUserService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(db.User{}, errors.New("some error"))
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.User{}, errors.New("some error"))
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
@@ -98,6 +104,8 @@ func TestCreateUserInternalServerError(t *testing.T) {
 	body, err := json.Marshal(user)
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewReader(body))
+	ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+	req = req.WithContext(ctx)
 	res := httptest.NewRecorder()
 
 	// 3. Execute
