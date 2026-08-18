@@ -7,12 +7,13 @@ import (
 	"net/http"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/json"
 	"github.com/go-playground/validator/v10"
 )
 
 type Service interface {
-	Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error)
+	Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error)
 	CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error)
 	List(ctx context.Context) ([]db.Quest, error)
 }
@@ -58,6 +59,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	identity, ok := auth.GetIdentityFromContext(r.Context())
+	if !ok {
+		slog.Error("Error getting identity from context")
+		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		return
+	}
 	var createQuestDto CreateQuestDto
 	if err := json.Read(r, &createQuestDto); err != nil {
 		slog.Error("Error reading request body", "error", err)
@@ -72,16 +79,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createQuestParams := db.CreateQuestParams{
-		UserID:      createQuestDto.UserID,
-		Title:       createQuestDto.Title,
-		Description: &createQuestDto.Description,
-		Type:        createQuestDto.Type,
-		Status:      createQuestDto.Status,
-		ImageUrl:    createQuestDto.ImageUrl,
-	}
-
-	createdQuest, err := h.srv.Create(r.Context(), createQuestParams)
+	createdQuest, err := h.srv.Create(r.Context(), createQuestDto, identity.Id)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
 		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {

@@ -112,6 +112,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO validations should include lengths of fields
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	identity, ok := auth.GetIdentityFromContext(r.Context())
 	if !ok {

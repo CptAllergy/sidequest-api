@@ -36,11 +36,19 @@ func (s *srv) List(ctx context.Context) ([]db.Quest, error) {
 	return s.store.ListQuests(ctx)
 }
 
-func (s *srv) Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error) {
-	// TODO get userId from auth token
+func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {
 	// TODO look into cloudflare R2 for images
 
-	return s.store.CreateQuest(ctx, quest)
+	createQuestParams := db.CreateQuestParams{
+		UserID:      userId,
+		Title:       quest.Title,
+		Description: &quest.Description,
+		Type:        quest.Type,
+		Status:      quest.Status,
+		ImageUrl:    quest.ImageUrl,
+	}
+
+	return s.store.CreateQuest(ctx, createQuestParams)
 }
 
 func (s *srv) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error) {

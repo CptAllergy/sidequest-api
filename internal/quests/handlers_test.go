@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/validation"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,6 @@ func TestCreateQuestOk(t *testing.T) {
 
 	// 2. Create Request
 	quest := CreateQuestDto{
-		UserID:      "0d5e518a-2109-4d43-9ee2-fad1081207f5",
 		Title:       "test title",
 		Description: "test description",
 		Type:        "BOOK",
@@ -74,6 +74,8 @@ func TestCreateQuestOk(t *testing.T) {
 	body, err := json.Marshal(quest)
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, "/quests", bytes.NewReader(body))
+	ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+	req = req.WithContext(ctx)
 	res := httptest.NewRecorder()
 
 	// 3. Execute
@@ -90,7 +92,6 @@ func TestCreateQuestBadRequest(t *testing.T) {
 	}{
 		"empty": {
 			quest: CreateQuestDto{
-				UserID:      "",
 				Title:       "",
 				Description: "",
 				Type:        "",
@@ -98,29 +99,8 @@ func TestCreateQuestBadRequest(t *testing.T) {
 				ImageUrl:    "",
 			},
 		},
-		"missing userId": {
-			quest: CreateQuestDto{
-				UserID:      "",
-				Title:       "title",
-				Description: "description",
-				Type:        "BOOK",
-				Status:      "STARTED",
-				ImageUrl:    "test-image-url",
-			},
-		},
-		"invalid uuid format": {
-			quest: CreateQuestDto{
-				UserID:      "invalid-uuid",
-				Title:       "title",
-				Description: "description",
-				Type:        "BOOK",
-				Status:      "STARTED",
-				ImageUrl:    "test-image-url",
-			},
-		},
 		"missing title": {
 			quest: CreateQuestDto{
-				UserID:      "0d5e518a-2109-4d43-9ee2-fad1081207f5",
 				Title:       "",
 				Description: "description",
 				Type:        "BOOK",
@@ -130,7 +110,6 @@ func TestCreateQuestBadRequest(t *testing.T) {
 		},
 		"invalid type": {
 			quest: CreateQuestDto{
-				UserID:      "0d5e518a-2109-4d43-9ee2-fad1081207f5",
 				Title:       "title",
 				Description: "description",
 				Type:        "invalid",
@@ -140,7 +119,6 @@ func TestCreateQuestBadRequest(t *testing.T) {
 		},
 		"invalid status": {
 			quest: CreateQuestDto{
-				UserID:      "0d5e518a-2109-4d43-9ee2-fad1081207f5",
 				Title:       "title",
 				Description: "description",
 				Type:        "BOOK",
@@ -164,6 +142,8 @@ func TestCreateQuestBadRequest(t *testing.T) {
 			body, err := json.Marshal(tt.quest)
 			require.NoError(t, err)
 			req := httptest.NewRequest(http.MethodPost, "/quests", bytes.NewReader(body))
+			ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+			req = req.WithContext(ctx)
 			res := httptest.NewRecorder()
 
 			// 3. Execute
@@ -186,7 +166,6 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 
 	// 2. Create Request
 	quest := CreateQuestDto{
-		UserID:      "0d5e518a-2109-4d43-9ee2-fad1081207f5",
 		Title:       "test title",
 		Description: "test description",
 		Type:        "BOOK",
@@ -197,6 +176,8 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 	body, err := json.Marshal(quest)
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, "/quests", bytes.NewReader(body))
+	ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+	req = req.WithContext(ctx)
 	res := httptest.NewRecorder()
 
 	// 3. Execute
@@ -210,8 +191,8 @@ type MockQuestService struct {
 	mock.Mock
 }
 
-func (m *MockQuestService) Create(ctx context.Context, quest db.CreateQuestParams) (db.Quest, error) {
-	args := m.Called(ctx, quest)
+func (m *MockQuestService) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {
+	args := m.Called(ctx, quest, userId)
 	return args.Get(0).(db.Quest), args.Error(1)
 }
 
