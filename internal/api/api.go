@@ -72,6 +72,7 @@ func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) 
 		r.Use(app.AuthMiddleware)
 		r.Use(app.AccountMiddleware)
 		r.Get("/", questHandler.List)
+		r.Get("/{id}", questHandler.GetById)
 		r.Post("/", questHandler.Create)
 	})
 }

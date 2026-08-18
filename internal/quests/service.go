@@ -3,6 +3,7 @@ package quests
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/jackc/pgx/v5"
@@ -20,8 +21,9 @@ type store interface {
 }
 
 var (
-	ErrNotFound  = errors.New("not found")
-	ErrForbidden = errors.New("user does not have permission to perform this action")
+	ErrNotFound   = errors.New("not found")
+	ErrForbidden  = errors.New("user does not have permission to perform this action")
+	ErrBadRequest = errors.New("invalid parameters")
 )
 
 type srv struct {
@@ -49,6 +51,25 @@ func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (
 	}
 
 	return s.store.CreateQuest(ctx, createQuestParams)
+}
+
+func (s *srv) GetById(ctx context.Context, id string) (db.Quest, error) {
+	// Convert ID string to UUID
+	var uuid pgtype.UUID
+	err := uuid.Scan(id)
+	if err != nil {
+		return db.Quest{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, id, err)
+	}
+
+	savedQuest, err := s.store.GetQuest(ctx, uuid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.Quest{}, ErrNotFound
+		}
+		return db.Quest{}, err
+	}
+
+	return savedQuest, nil
 }
 
 func (s *srv) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error) {

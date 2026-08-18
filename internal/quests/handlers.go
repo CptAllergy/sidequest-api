@@ -9,11 +9,13 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/json"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 )
 
 type Service interface {
 	Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error)
+	GetById(ctx context.Context, id string) (db.Quest, error)
 	CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error)
 	List(ctx context.Context) ([]db.Quest, error)
 }
@@ -89,7 +91,29 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	slog.Info("Created quest", "id", createdQuest)
 	err = json.Write(w, http.StatusOK, createdQuest)
+	if err != nil {
+		slog.Error("Error writing response", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
+	questId := chi.URLParam(r, "id")
+	quest, err := h.srv.GetById(r.Context(), questId)
+	// TODO add a not found error
+	if err != nil {
+		slog.Error("Error fetching quest", "error", err)
+		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	err = json.Write(w, http.StatusOK, quest)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -137,13 +161,6 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // TODO implement handlers
-//func (q QuestHandler) List(w http.ResponseWriter, r *http.Request) {
-//	err := json.go.NewEncoder(w).Encode(listQuests())
-//	if err != nil {
-//		http.Error(w, "Internal error", http.StatusInternalServerError)
-//		return
-//	}
-//}
 //
 //func (q QuestHandler) GetQuest(w http.ResponseWriter, r *http.Request) {
 //	id := chi.URLParam(r, "id")
