@@ -59,7 +59,7 @@ func TestCreateQuestOk(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockQuestService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(db.Quest{}, nil)
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.Quest{}, nil)
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
@@ -131,7 +131,7 @@ func TestCreateQuestBadRequest(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockQuestService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(db.Quest{}, nil)
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.Quest{}, nil)
 	h := NewHandler(mockService, validate)
 
 	for name, tt := range tests {
@@ -161,7 +161,7 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockQuestService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything).Return(db.Quest{}, errors.New("some error"))
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.Quest{}, errors.New("some error"))
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
