@@ -2,6 +2,7 @@ package quests
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -15,7 +16,7 @@ type store interface {
 	CreateQuest(ctx context.Context, arg db.CreateQuestParams) (db.Quest, error)
 	GetQuest(ctx context.Context, id pgtype.UUID) (db.Quest, error)
 	GetQuestForShare(ctx context.Context, id pgtype.UUID) (db.Quest, error)
-	ListQuests(ctx context.Context) ([]db.Quest, error)
+	ListQuestsByUserId(ctx context.Context, userID string) ([]db.Quest, error)
 	ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]db.QuestEntry, error)
 	CreateQuestEntry(ctx context.Context, arg db.CreateQuestEntryParams) (db.QuestEntry, error)
 }
@@ -30,12 +31,18 @@ type srv struct {
 	store store
 }
 
+// TODO move this type somewhere better
+type TextContent struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
 func NewService(store store) Service {
 	return &srv{store: store}
 }
 
-func (s *srv) List(ctx context.Context) ([]db.Quest, error) {
-	return s.store.ListQuests(ctx)
+func (s *srv) ListByUserId(ctx context.Context, userId string) ([]db.Quest, error) {
+	return s.store.ListQuestsByUserId(ctx, userId)
 }
 
 func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {
@@ -72,19 +79,41 @@ func (s *srv) GetById(ctx context.Context, id string) (db.Quest, error) {
 	return savedQuest, nil
 }
 
-func (s *srv) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error) {
+func (s *srv) CreateEntry(ctx context.Context, entry CreateQuestEntryDto, userId string, questId string) (db.QuestEntry, error) {
+
+	var uuid pgtype.UUID
+	err := uuid.Scan(questId)
+	if err != nil {
+		return db.QuestEntry{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
+	}
+
+	textContent := TextContent{
+		Title:       entry.Title,
+		Description: entry.Description,
+	}
+	contentBytes, err := json.Marshal(textContent)
+	if err != nil {
+		return db.QuestEntry{}, fmt.Errorf("%w: failed to marshal JSON: %v\"", ErrBadRequest, err)
+	}
+
+	createQuestEntryParams := db.CreateQuestEntryParams{
+		QuestID: uuid,
+		UserID:  userId,
+		Type:    "TEXT",
+		Content: contentBytes,
+	}
+
 	var savedEntry db.QuestEntry
-	err := s.store.ExecTx(ctx, func(qtx db.Querier) error {
-		quest, txErr := qtx.GetQuestForShare(ctx, entry.QuestID)
+	err = s.store.ExecTx(ctx, func(qtx db.Querier) error {
+		quest, txErr := qtx.GetQuestForShare(ctx, uuid)
 		if txErr != nil {
 			return txErr
 		}
-		// TODO get userId from auth token
-		if quest.UserID != entry.UserID {
+		if quest.UserID != userId {
 			return ErrForbidden
 		}
 
-		savedEntry, txErr = qtx.CreateQuestEntry(ctx, entry)
+		savedEntry, txErr = qtx.CreateQuestEntry(ctx, createQuestEntryParams)
 		if txErr != nil {
 			return txErr
 		}
@@ -99,4 +128,14 @@ func (s *srv) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) 
 	}
 
 	return savedEntry, nil
+}
+
+func (s *srv) ListQuestEntries(ctx context.Context, questId string) ([]db.QuestEntry, error) {
+	var uuid pgtype.UUID
+	err := uuid.Scan(questId)
+	if err != nil {
+		return []db.QuestEntry{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
+	}
+
+	return s.store.ListQuestEntries(ctx, uuid)
 }

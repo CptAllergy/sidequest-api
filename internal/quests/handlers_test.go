@@ -196,12 +196,22 @@ func (m *MockQuestService) Create(ctx context.Context, quest CreateQuestDto, use
 	return args.Get(0).(db.Quest), args.Error(1)
 }
 
-func (m *MockQuestService) CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error) {
-	args := m.Called(ctx, entry)
+func (m *MockQuestService) CreateEntry(ctx context.Context, entry CreateQuestEntryDto, userId string, questId string) (db.QuestEntry, error) {
+	args := m.Called(ctx, entry, userId, questId)
 	return args.Get(0).(db.QuestEntry), args.Error(1)
 }
 
-func (m *MockQuestService) List(ctx context.Context) ([]db.Quest, error) {
-	args := m.Called(ctx)
+func (m *MockQuestService) ListByUserId(ctx context.Context, userId string) ([]db.Quest, error) {
+	args := m.Called(ctx, userId)
 	return args.Get(0).([]db.Quest), args.Error(1)
+}
+
+func (m *MockQuestService) GetById(ctx context.Context, id string) (db.Quest, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(db.Quest), args.Error(1)
+}
+
+func (m *MockQuestService) ListQuestEntries(ctx context.Context, questId string) ([]db.QuestEntry, error) {
+	args := m.Called(ctx, questId)
+	return args.Get(0).([]db.QuestEntry), args.Error(1)
 }

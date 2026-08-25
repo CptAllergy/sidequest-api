@@ -164,13 +164,14 @@ func (q *Queries) ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]
 	return items, nil
 }
 
-const listQuests = `-- name: ListQuests :many
+const listQuestsByUserId = `-- name: ListQuestsByUserId :many
 SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
 FROM quests
+WHERE user_id = $1
 `
 
-func (q *Queries) ListQuests(ctx context.Context) ([]Quest, error) {
-	rows, err := q.db.Query(ctx, listQuests)
+func (q *Queries) ListQuestsByUserId(ctx context.Context, userID string) ([]Quest, error) {
+	rows, err := q.db.Query(ctx, listQuestsByUserId, userID)
 	if err != nil {
 		return nil, err
 	}

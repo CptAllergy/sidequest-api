@@ -89,7 +89,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
 		return
 	}
-	slog.Warn("User has a full account, proceeding to next handler", "identity", identity)
+
 	user, err := h.srv.GetById(r.Context(), identity.Id)
 	if err != nil {
 		slog.Error("Error fetching user", "error", err)

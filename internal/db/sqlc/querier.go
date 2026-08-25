@@ -20,7 +20,7 @@ type Querier interface {
 	GetUserByIdForShare(ctx context.Context, id string) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]QuestEntry, error)
-	ListQuests(ctx context.Context) ([]Quest, error)
+	ListQuestsByUserId(ctx context.Context, userID string) ([]Quest, error)
 	ListUsers(ctx context.Context) ([]User, error)
 }
 

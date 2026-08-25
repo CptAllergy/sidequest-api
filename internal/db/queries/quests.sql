@@ -1,6 +1,7 @@
--- name: ListQuests :many
+-- name: ListQuestsByUserId :many
 SELECT *
-FROM quests;
+FROM quests
+WHERE user_id = $1;
 
 -- name: GetQuest :one
 SELECT *

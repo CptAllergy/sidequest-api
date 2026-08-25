@@ -16,8 +16,9 @@ import (
 type Service interface {
 	Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error)
 	GetById(ctx context.Context, id string) (db.Quest, error)
-	CreateEntry(ctx context.Context, entry db.CreateQuestEntryParams) (db.QuestEntry, error)
-	List(ctx context.Context) ([]db.Quest, error)
+	CreateEntry(ctx context.Context, entry CreateQuestEntryDto, userId string, questId string) (db.QuestEntry, error)
+	ListByUserId(ctx context.Context, userId string) ([]db.Quest, error)
+	ListQuestEntries(ctx context.Context, questId string) ([]db.QuestEntry, error)
 }
 
 type Handler struct {
@@ -40,8 +41,15 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 // TODO figure out pagination
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	quests, err := h.srv.List(r.Context())
+func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
+	identity, ok := auth.GetIdentityFromContext(r.Context())
+	if !ok {
+		slog.Error("Error getting identity from context")
+		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		return
+	}
+
+	quests, err := h.srv.ListByUserId(r.Context(), identity.Id)
 	if err != nil {
 		slog.Error("Error listing quests", "error", err)
 		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
@@ -122,15 +130,22 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
-	// TODO use entry DTO
-	var newEntry db.CreateQuestEntryParams
+	questId := chi.URLParam(r, "id")
+	identity, ok := auth.GetIdentityFromContext(r.Context())
+	if !ok {
+		slog.Error("Error getting identity from context")
+		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		return
+	}
+
+	var newEntry CreateQuestEntryDto
 	if err := json.Read(r, &newEntry); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	createdEntry, err := h.srv.CreateEntry(r.Context(), newEntry)
+	createdEntry, err := h.srv.CreateEntry(r.Context(), newEntry, identity.Id, questId)
 	if err != nil {
 		slog.Error("Error creating quest entry", "error", err)
 
@@ -153,6 +168,29 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = json.Write(w, http.StatusOK, createdEntry)
+	if err != nil {
+		slog.Error("Error writing response", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+// TODO make fetch entries
+func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
+	questId := chi.URLParam(r, "id")
+	quest, err := h.srv.ListQuestEntries(r.Context(), questId)
+	// TODO add a not found error
+	// TODO add a check to see if the userId of the token matches the owner of the quest, only he should see the entries, otherwise return forbidden
+	if err != nil {
+		slog.Error("Error fetching quest entries", "error", err)
+		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	err = json.Write(w, http.StatusOK, quest)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
