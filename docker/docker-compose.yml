@@ -186,7 +186,16 @@ services:
       - traefik.http.routers.zitadel-login-websecure.tls=true
       - traefik.http.routers.zitadel-login-websecure.service=zitadel-login
       - traefik.http.routers.zitadel-login-websecure.priority=250
-
+  garage:
+    image: ${GARAGE_IMAGE}
+    volumes:
+      - ./garage.toml:/etc/garage.toml
+      - garage-storage:/var/lib/garage
+    restart: unless-stopped
+    ports:
+      - "3900:3900"
+      - "3901:3901"
+      - "3903:3903"
 
 networks:
   sidequest-net:
@@ -195,3 +204,4 @@ networks:
 volumes:
   postgres-data:
   zitadel-bootstrap:
+  garage-storage:
