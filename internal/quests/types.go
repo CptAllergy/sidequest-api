@@ -10,6 +10,7 @@ type CreateQuestDto struct {
 
 // TODO add quest entrie dto, right now type ideas are TEXT, IMAGE (OPTIONAL DESCRIPTION), URL (LINK), STATUS CHANGE, GALLERY
 // TODO think well about the entry API and if the current types solutions are adequate
+// TODO create return type DTOs
 type CreateQuestEntryDto struct {
 	Title       string `json:"title" validate:"required"`
 	Description string `json:"description" validate:"required"`

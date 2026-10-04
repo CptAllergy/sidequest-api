@@ -6,15 +6,19 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
 )
 
+// TODO media cleanup strategy: upload new quest images to /temp. After quest/entry is created move it over to final location
+// TODO every 24 hours run a cleanup job that deletes all files in /temp older than 24 hours. This will ensure that we don't have orphaned files taking up space in S3.
+
 type Storage interface {
-	GetPresignedUrl(
-		ctx context.Context, objectKey string, lifetimeSecs int64) (string, error)
+	GetPresignedUrl(ctx context.Context, objectKey string, lifetimeSecs int64) (string, error)
+	Request(ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
 }
 
 type s3Storage struct {
@@ -58,4 +62,19 @@ func (s *s3Storage) GetPresignedUrl(
 		return "", fmt.Errorf("creating presigned url for object %s: %w", objectKey, err)
 	}
 	return request.URL, nil
+}
+
+func (s *s3Storage) Request(
+	ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) {
+	request, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucketName),
+		Key:         aws.String(objectKey),
+		ContentType: aws.String(contentType),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = time.Duration(lifetimeSecs * int64(time.Second))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating presigned put url for object %s: %w", objectKey, err)
+	}
+	return request, nil
 }
