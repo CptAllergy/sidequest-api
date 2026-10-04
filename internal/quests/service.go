@@ -46,21 +46,15 @@ func NewService(store store, storage storage.Storage) Service {
 func (s *srv) ListByUserId(ctx context.Context, userId string) ([]db.Quest, error) {
 
 	quests, err := s.store.ListQuestsByUserId(ctx, userId)
-	// TODO replace with proper logic this test image
-	imageUrl, err := s.storage.GetPresignedUrl(ctx, "hytale.png", 3600)
-
+	// TODO is this efficient?
 	for i, quest := range quests {
-		if quest.ImageUrl == "" {
-			quests[i].ImageUrl = imageUrl
-		}
+		quests[i].ImageUrl, _ = s.storage.PresignedGetUrl(ctx, quest.ImageUrl, 3600)
 	}
 
 	return quests, err
 }
 
 func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {
-	// TODO look into cloudflare R2 for images
-
 	createQuestParams := db.CreateQuestParams{
 		UserID:      userId,
 		Title:       quest.Title,

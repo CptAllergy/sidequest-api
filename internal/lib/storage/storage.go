@@ -17,8 +17,10 @@ import (
 // TODO every 24 hours run a cleanup job that deletes all files in /temp older than 24 hours. This will ensure that we don't have orphaned files taking up space in S3.
 
 type Storage interface {
-	GetPresignedUrl(ctx context.Context, objectKey string, lifetimeSecs int64) (string, error)
-	Request(ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
+	PresignedGetUrl(
+		ctx context.Context, objectKey string, lifetimeSecs int64) (string, error)
+	PresignedPutUrl(
+		ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
 }
 
 type s3Storage struct {
@@ -50,7 +52,7 @@ func NewStorage(ctx context.Context, cfg config.Storage) (Storage, error) {
 
 }
 
-func (s *s3Storage) GetPresignedUrl(
+func (s *s3Storage) PresignedGetUrl(
 	ctx context.Context, objectKey string, lifetimeSecs int64) (string, error) {
 	request, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucketName),
@@ -64,7 +66,7 @@ func (s *s3Storage) GetPresignedUrl(
 	return request.URL, nil
 }
 
-func (s *s3Storage) Request(
+func (s *s3Storage) PresignedPutUrl(
 	ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) {
 	request, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucketName),

@@ -8,6 +8,7 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/cptallergy/sidequest-api/internal/lib/storage"
 	"github.com/cptallergy/sidequest-api/internal/lib/validation"
+	"github.com/cptallergy/sidequest-api/internal/media"
 	"github.com/cptallergy/sidequest-api/internal/quests"
 	"github.com/cptallergy/sidequest-api/internal/users"
 	"github.com/go-chi/chi/v5"
@@ -63,6 +64,7 @@ func (app *Application) Mount() http.Handler {
 	validate := validation.SetupValidator()
 	app.mountQuests(r, validate)
 	app.mountUsers(r, validate)
+	app.mountMedia(r)
 
 	return r
 }
@@ -98,5 +100,15 @@ func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 				r.Get("/", userHandler.List)
 			})
 		})
+	})
+}
+
+func (app *Application) mountMedia(r chi.Router) {
+	mediaService := media.NewService(app.Storage)
+	mediaHandler := media.NewHandler(mediaService)
+	r.Route("/api/v1/uploads", func(r chi.Router) {
+		r.Use(app.AuthMiddleware)
+		r.Use(app.AccountMiddleware)
+		r.Post("/presign", mediaHandler.PresignedUpload)
 	})
 }

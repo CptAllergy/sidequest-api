@@ -12,6 +12,7 @@ require (
 	github.com/go-chi/cors v1.2.2
 	github.com/go-chi/httplog/v3 v3.5.0
 	github.com/go-playground/validator/v10 v10.30.5
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/pressly/goose/v3 v3.28.0
@@ -72,7 +73,6 @@ require (
 	github.com/go-playground/locales v0.14.2 // indirect
 	github.com/go-playground/universal-translator v0.18.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
