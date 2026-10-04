@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/cptallergy/sidequest-api/internal/lib/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -28,7 +29,8 @@ var (
 )
 
 type srv struct {
-	store store
+	store   store
+	storage storage.Storage
 }
 
 // TODO move this type somewhere better
@@ -37,12 +39,23 @@ type TextContent struct {
 	Description string `json:"description"`
 }
 
-func NewService(store store) Service {
-	return &srv{store: store}
+func NewService(store store, storage storage.Storage) Service {
+	return &srv{store: store, storage: storage}
 }
 
 func (s *srv) ListByUserId(ctx context.Context, userId string) ([]db.Quest, error) {
-	return s.store.ListQuestsByUserId(ctx, userId)
+
+	quests, err := s.store.ListQuestsByUserId(ctx, userId)
+	// TODO replace with proper logic this test image
+	imageUrl, err := s.storage.GetPresignedUrl(ctx, "hytale.png", 3600)
+
+	for i, quest := range quests {
+		if quest.ImageUrl == "" {
+			quests[i].ImageUrl = imageUrl
+		}
+	}
+
+	return quests, err
 }
 
 func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {

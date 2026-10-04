@@ -6,6 +6,7 @@ import (
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
+	"github.com/cptallergy/sidequest-api/internal/lib/storage"
 	"github.com/cptallergy/sidequest-api/internal/lib/validation"
 	"github.com/cptallergy/sidequest-api/internal/quests"
 	"github.com/cptallergy/sidequest-api/internal/users"
@@ -19,6 +20,7 @@ import (
 type Application struct {
 	Config            config.Config
 	Store             db.Store
+	Storage           storage.Storage
 	AuthMiddleware    func(http.Handler) http.Handler
 	AccountMiddleware func(http.Handler) http.Handler
 }
@@ -66,7 +68,7 @@ func (app *Application) Mount() http.Handler {
 }
 
 func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) {
-	questService := quests.NewService(app.Store)
+	questService := quests.NewService(app.Store, app.Storage)
 	questHandler := quests.NewHandler(questService, validate)
 	r.Route("/api/v1/quests", func(r chi.Router) {
 		r.Use(app.AuthMiddleware)

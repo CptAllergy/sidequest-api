@@ -15,6 +15,7 @@ type Config struct {
 	Server   Server
 	Database Database
 	Auth     Auth
+	Storage  Storage
 }
 
 type Server struct {
@@ -48,6 +49,13 @@ type Auth struct {
 	ZitadelInsecurePort string
 }
 
+type Storage struct {
+	S3Api       string
+	S3AccessKey string
+	S3SecretKey string
+	S3Bucket    string
+}
+
 func Load() (Config, error) {
 	_ = godotenv.Load()
 
@@ -78,6 +86,12 @@ func Load() (Config, error) {
 			},
 		},
 		Auth: auth,
+		Storage: Storage{
+			S3Api:       os.Getenv("S3_API_URL"),
+			S3AccessKey: os.Getenv("S3_APP_ACCESS_KEY"),
+			S3SecretKey: os.Getenv("S3_APP_SECRET_KEY"),
+			S3Bucket:    os.Getenv("S3_APP_BUCKET"),
+		},
 	}, nil
 }
 

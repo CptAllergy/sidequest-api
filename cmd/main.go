@@ -11,6 +11,7 @@ import (
 	"github.com/cptallergy/sidequest-api/internal/lib/config"
 	"github.com/cptallergy/sidequest-api/internal/lib/database"
 	"github.com/cptallergy/sidequest-api/internal/lib/logger"
+	"github.com/cptallergy/sidequest-api/internal/lib/storage"
 )
 
 func main() {
@@ -42,10 +43,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	objectStorage, err := storage.NewStorage(ctx, cfg.Storage)
+	if err != nil {
+		slog.Error("Failed to initialize storage", "error", err)
+		os.Exit(1)
+	}
+
 	str := db.NewStore(connPool)
 	app := &api.Application{
 		Config:            cfg,
 		Store:             str,
+		Storage:           objectStorage,
 		AuthMiddleware:    authMiddleware,
 		AccountMiddleware: auth.NewAccountMiddleware(str),
 	}
