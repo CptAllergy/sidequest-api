@@ -17,3 +17,6 @@ var AllowedImageTypes = map[string]string{
 	"image/png":  ".png",
 	"image/webp": ".webp",
 }
+
+const QUEST_PATH = "quests/"
+const TMP_PATH = "tmp/"

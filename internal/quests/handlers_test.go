@@ -65,10 +65,10 @@ func TestCreateQuestOk(t *testing.T) {
 	// 2. Create Request
 	quest := CreateQuestDto{
 		Title:       "test title",
-		Description: "test description",
+		Description: new("test description"),
 		Type:        "BOOK",
 		Status:      "STARTED",
-		ImageUrl:    "test-image-url",
+		ImageKey:    new("test-image-url"),
 	}
 
 	body, err := json.Marshal(quest)
@@ -93,37 +93,37 @@ func TestCreateQuestBadRequest(t *testing.T) {
 		"empty": {
 			quest: CreateQuestDto{
 				Title:       "",
-				Description: "",
+				Description: nil,
 				Type:        "",
 				Status:      "",
-				ImageUrl:    "",
+				ImageKey:    nil,
 			},
 		},
 		"missing title": {
 			quest: CreateQuestDto{
 				Title:       "",
-				Description: "description",
+				Description: new("description"),
 				Type:        "BOOK",
 				Status:      "STARTED",
-				ImageUrl:    "test-image-url",
+				ImageKey:    new("test-image-url"),
 			},
 		},
 		"invalid type": {
 			quest: CreateQuestDto{
 				Title:       "title",
-				Description: "description",
+				Description: new("description"),
 				Type:        "invalid",
 				Status:      "STARTED",
-				ImageUrl:    "test-image-url",
+				ImageKey:    new("test-image-url"),
 			},
 		},
 		"invalid status": {
 			quest: CreateQuestDto{
 				Title:       "title",
-				Description: "description",
+				Description: new("description"),
 				Type:        "BOOK",
 				Status:      "invalid",
-				ImageUrl:    "test-image-url",
+				ImageKey:    new("test-image-url"),
 			},
 		},
 	}
@@ -167,10 +167,10 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 	// 2. Create Request
 	quest := CreateQuestDto{
 		Title:       "test title",
-		Description: "test description",
+		Description: new("test description"),
 		Type:        "BOOK",
 		Status:      "STARTED",
-		ImageUrl:    "test-image-url",
+		ImageKey:    new("test-image-url"),
 	}
 
 	body, err := json.Marshal(quest)

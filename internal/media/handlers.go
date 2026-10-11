@@ -43,6 +43,12 @@ func (h *Handler) PresignedUpload(w http.ResponseWriter, r *http.Request) {
 	uploadInfo, objectKey, err := h.srv.CreatePresignedPutUrl(r.Context(), presignedUploadDto)
 	if err != nil {
 		slog.Error("Error creating presigned PUT url", "error", err)
+
+		if errors.Is(err, ErrUnsupportedMediaType) {
+			http.Error(w, "unsupported media type", http.StatusBadRequest)
+			return
+		}
+
 		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
 			return
 		}

@@ -12,28 +12,30 @@ import (
 )
 
 const createQuest = `-- name: CreateQuest :one
-INSERT INTO quests (user_id, title, description, type, status, image_url)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, title, description, type, status, image_url, created_at, updated_at
+INSERT INTO quests (id, user_id, title, description, type, status, image_key)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, title, description, type, status, image_key, created_at, updated_at
 `
 
 type CreateQuestParams struct {
-	UserID      string  `json:"user_id"`
-	Title       string  `json:"title"`
-	Description *string `json:"description"`
-	Type        string  `json:"type"`
-	Status      string  `json:"status"`
-	ImageUrl    string  `json:"image_url"`
+	ID          pgtype.UUID `json:"id"`
+	UserID      string      `json:"user_id"`
+	Title       string      `json:"title"`
+	Description *string     `json:"description"`
+	Type        string      `json:"type"`
+	Status      string      `json:"status"`
+	ImageKey    *string     `json:"image_key"`
 }
 
 func (q *Queries) CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error) {
 	row := q.db.QueryRow(ctx, createQuest,
+		arg.ID,
 		arg.UserID,
 		arg.Title,
 		arg.Description,
 		arg.Type,
 		arg.Status,
-		arg.ImageUrl,
+		arg.ImageKey,
 	)
 	var i Quest
 	err := row.Scan(
@@ -43,7 +45,7 @@ func (q *Queries) CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest
 		&i.Description,
 		&i.Type,
 		&i.Status,
-		&i.ImageUrl,
+		&i.ImageKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -84,7 +86,7 @@ func (q *Queries) CreateQuestEntry(ctx context.Context, arg CreateQuestEntryPara
 }
 
 const getQuest = `-- name: GetQuest :one
-SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
+SELECT id, user_id, title, description, type, status, image_key, created_at, updated_at
 FROM quests
 WHERE id = $1
 `
@@ -99,7 +101,7 @@ func (q *Queries) GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error) {
 		&i.Description,
 		&i.Type,
 		&i.Status,
-		&i.ImageUrl,
+		&i.ImageKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -107,7 +109,7 @@ func (q *Queries) GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error) {
 }
 
 const getQuestForShare = `-- name: GetQuestForShare :one
-SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
+SELECT id, user_id, title, description, type, status, image_key, created_at, updated_at
 FROM quests
 WHERE id = $1
 FOR SHARE
@@ -123,7 +125,7 @@ func (q *Queries) GetQuestForShare(ctx context.Context, id pgtype.UUID) (Quest, 
 		&i.Description,
 		&i.Type,
 		&i.Status,
-		&i.ImageUrl,
+		&i.ImageKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -165,7 +167,7 @@ func (q *Queries) ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]
 }
 
 const listQuestsByUserId = `-- name: ListQuestsByUserId :many
-SELECT id, user_id, title, description, type, status, image_url, created_at, updated_at
+SELECT id, user_id, title, description, type, status, image_key, created_at, updated_at
 FROM quests
 WHERE user_id = $1
 `
@@ -186,7 +188,7 @@ func (q *Queries) ListQuestsByUserId(ctx context.Context, userID string) ([]Ques
 			&i.Description,
 			&i.Type,
 			&i.Status,
-			&i.ImageUrl,
+			&i.ImageKey,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

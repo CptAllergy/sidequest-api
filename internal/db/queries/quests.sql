@@ -15,8 +15,8 @@ WHERE id = $1
 FOR SHARE;
 
 -- name: CreateQuest :one
-INSERT INTO quests (user_id, title, description, type, status, image_url)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO quests (id, user_id, title, description, type, status, image_key)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: CreateQuestEntry :one

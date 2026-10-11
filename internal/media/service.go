@@ -26,6 +26,7 @@ func NewService(storage storage.Storage) Service {
 	return &srv{storage}
 }
 
+// TODO consider saving the userId in metadata, so that when quests or other objects are created, the userId can be matched to the file for authorization
 func (s *srv) CreatePresignedPutUrl(
 	ctx context.Context,
 	presignedUploadDto PresignedUploadDto) (
@@ -39,7 +40,7 @@ func (s *srv) CreatePresignedPutUrl(
 	}
 
 	objectKey = fmt.Sprintf("%s/%s%s", tempDir, uuid.New().String(), ext)
-	uploadInfo, err := s.storage.PresignedPutUrl(ctx, objectKey, mediaType, 3600)
+	uploadInfo, err := s.storage.PresignPutUrl(ctx, objectKey, mediaType, 3600)
 	if err != nil {
 		return nil, "", ErrPresigned
 	}

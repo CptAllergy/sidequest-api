@@ -15,7 +15,7 @@ type Quest struct {
 	Description *string            `json:"description"`
 	Type        string             `json:"type"`
 	Status      string             `json:"status"`
-	ImageUrl    string             `json:"image_url"`
+	ImageKey    *string            `json:"image_key"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }

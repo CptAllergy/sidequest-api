@@ -59,8 +59,15 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	// TODO Recheck this mapping logic
+	var questsDto []QuestDto
+	for _, quest := range quests {
+		questsDto = append(questsDto, mapQuestDto(quest))
+	}
+
 	// TODO should I use an envelope for this **helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"quests": all})*** what's the point of the envelope?
-	err = json.Write(w, http.StatusOK, quests)
+	err = json.Write(w, http.StatusOK, questsDto)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -99,8 +106,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
 	slog.Info("Created quest", "id", createdQuest)
-	err = json.Write(w, http.StatusOK, createdQuest)
+	// TODO Recheck this mapping logic
+	err = json.Write(w, http.StatusOK, mapQuestDto(createdQuest))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -121,7 +130,8 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, quest)
+	// TODO Recheck this mapping logic
+	err = json.Write(w, http.StatusOK, mapQuestDto(quest))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -200,36 +210,6 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 
 // TODO implement handlers
 //
-//func (q QuestHandler) GetQuest(w http.ResponseWriter, r *http.Request) {
-//	id := chi.URLParam(r, "id")
-//	quest := getQuest(id)
-//	if quest == nil {
-//		http.Error(w, "Quest not found", http.StatusNotFound)
-//	}
-//	err := json.go.NewEncoder(w).Encode(quest)
-//	if err != nil {
-//		http.Error(w, "Internal error", http.StatusInternalServerError)
-//		return
-//	}
-//}
-//
-//func (q QuestHandler) CreateQuestHandler(w http.ResponseWriter, r *http.Request) {
-//	id := strconv.Itoa(rand.IntN(1000))
-//	var quest Quest
-//	err := json.go.NewDecoder(r.Body).Decode(&quest)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusBadRequest)
-//		return
-//	}
-//	quest.ID = id
-//	createQuest(quest)
-//	err = json.go.NewEncoder(w).Encode(quest)
-//	if err != nil {
-//		http.Error(w, "Internal error", http.StatusInternalServerError)
-//		return
-//	}
-//}
-//
 //func (q QuestHandler) UpdateQuest(w http.ResponseWriter, r *http.Request) {
 //	id := chi.URLParam(r, "id")
 //	var quest Quest
@@ -258,6 +238,23 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 //	}
 //	w.WriteHeader(http.StatusNoContent)
 //}
+
+// TODO research how mappers are usually done in go, for now this should work
+func mapQuestDto(quest db.Quest) QuestDto {
+	return QuestDto{
+		Id:          quest.ID.String(),
+		UserId:      quest.UserID,
+		Title:       quest.Title,
+		Description: quest.Description,
+		Type:        quest.Type,
+		Status:      quest.Status,
+		// TODO now contains the url, see if it makes sense to rename somewhere else or create an intermediate object
+		ImageUrl: quest.ImageKey,
+		// TODO check what are the standard types that should be passed here
+		CreatedAt: quest.CreatedAt.Time.UTC().Format("2006-01-02T15:04:05.000000Z07:00"),
+		UpdatedAt: quest.UpdatedAt.Time.UTC().Format("2006-01-02T15:04:05.000000Z07:00"),
+	}
+}
 
 func registerValidations(v *validator.Validate) error {
 	err := v.RegisterValidation("quest_status", func(fl validator.FieldLevel) bool {
