@@ -47,7 +47,13 @@ func NewStorage(ctx context.Context, cfg config.Storage) (Storage, error) {
 		options.UsePathStyle = true
 	})
 
-	presignClient := s3.NewPresignClient(s3Client)
+	// External API used for the presigner
+	s3ExternalClient := s3.NewFromConfig(sdkConfig, func(options *s3.Options) {
+		options.BaseEndpoint = &cfg.S3ExternalApi
+		options.UsePathStyle = true
+	})
+
+	presignClient := s3.NewPresignClient(s3ExternalClient)
 
 	return &s3Storage{
 		s3Client:   s3Client,

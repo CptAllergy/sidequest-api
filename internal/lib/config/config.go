@@ -50,10 +50,11 @@ type Auth struct {
 }
 
 type Storage struct {
-	S3Api       string
-	S3AccessKey string
-	S3SecretKey string
-	S3Bucket    string
+	S3Api         string
+	S3ExternalApi string
+	S3AccessKey   string
+	S3SecretKey   string
+	S3Bucket      string
 }
 
 func Load() (Config, error) {
@@ -87,10 +88,11 @@ func Load() (Config, error) {
 		},
 		Auth: auth,
 		Storage: Storage{
-			S3Api:       os.Getenv("S3_API_URL"),
-			S3AccessKey: os.Getenv("S3_APP_ACCESS_KEY"),
-			S3SecretKey: os.Getenv("S3_APP_SECRET_KEY"),
-			S3Bucket:    os.Getenv("S3_APP_BUCKET"),
+			S3Api:         os.Getenv("S3_API_URL"),
+			S3ExternalApi: os.Getenv("S3_EXTERNAL_API_URL"),
+			S3AccessKey:   os.Getenv("S3_APP_ACCESS_KEY"),
+			S3SecretKey:   os.Getenv("S3_APP_SECRET_KEY"),
+			S3Bucket:      os.Getenv("S3_APP_BUCKET"),
 		},
 	}, nil
 }
