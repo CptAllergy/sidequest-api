@@ -29,7 +29,7 @@ func NewService(store store) Service {
 	return &srv{store}
 }
 
-func (s *srv) Create(ctx context.Context, user CreateUserDto, userId string) (db.User, error) {
+func (s *srv) Create(ctx context.Context, user CreateUserRequest, userId string) (db.User, error) {
 	dbUserParams := db.CreateUserParams{ID: userId, Username: user.Username, DisplayName: user.Username}
 	savedUser, err := s.store.CreateUser(ctx, dbUserParams)
 	if err != nil {

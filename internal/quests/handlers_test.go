@@ -63,7 +63,7 @@ func TestCreateQuestOk(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	quest := CreateQuestDto{
+	quest := CreateQuestRequest{
 		Title:       "test title",
 		Description: new("test description"),
 		Type:        "BOOK",
@@ -88,10 +88,10 @@ func TestCreateQuestOk(t *testing.T) {
 func TestCreateQuestBadRequest(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
-		quest CreateQuestDto
+		quest CreateQuestRequest
 	}{
 		"empty": {
-			quest: CreateQuestDto{
+			quest: CreateQuestRequest{
 				Title:       "",
 				Description: nil,
 				Type:        "",
@@ -100,7 +100,7 @@ func TestCreateQuestBadRequest(t *testing.T) {
 			},
 		},
 		"missing title": {
-			quest: CreateQuestDto{
+			quest: CreateQuestRequest{
 				Title:       "",
 				Description: new("description"),
 				Type:        "BOOK",
@@ -109,7 +109,7 @@ func TestCreateQuestBadRequest(t *testing.T) {
 			},
 		},
 		"invalid type": {
-			quest: CreateQuestDto{
+			quest: CreateQuestRequest{
 				Title:       "title",
 				Description: new("description"),
 				Type:        "invalid",
@@ -118,7 +118,7 @@ func TestCreateQuestBadRequest(t *testing.T) {
 			},
 		},
 		"invalid status": {
-			quest: CreateQuestDto{
+			quest: CreateQuestRequest{
 				Title:       "title",
 				Description: new("description"),
 				Type:        "BOOK",
@@ -165,7 +165,7 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	quest := CreateQuestDto{
+	quest := CreateQuestRequest{
 		Title:       "test title",
 		Description: new("test description"),
 		Type:        "BOOK",
@@ -191,14 +191,14 @@ type MockQuestService struct {
 	mock.Mock
 }
 
-func (m *MockQuestService) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {
-	args := m.Called(ctx, quest, userId)
+func (m *MockQuestService) Create(ctx context.Context, userId string, quest CreateQuestRequest) (db.Quest, error) {
+	args := m.Called(ctx, userId, quest)
 	return args.Get(0).(db.Quest), args.Error(1)
 }
 
-func (m *MockQuestService) CreateEntry(ctx context.Context, entry CreateQuestEntryDto, userId string, questId string) (db.QuestEntry, error) {
-	args := m.Called(ctx, entry, userId, questId)
-	return args.Get(0).(db.QuestEntry), args.Error(1)
+func (m *MockQuestService) GetById(ctx context.Context, userId string, questId string) (db.Quest, error) {
+	args := m.Called(ctx, userId, questId)
+	return args.Get(0).(db.Quest), args.Error(1)
 }
 
 func (m *MockQuestService) ListByUserId(ctx context.Context, userId string) ([]db.Quest, error) {
@@ -206,12 +206,12 @@ func (m *MockQuestService) ListByUserId(ctx context.Context, userId string) ([]d
 	return args.Get(0).([]db.Quest), args.Error(1)
 }
 
-func (m *MockQuestService) GetById(ctx context.Context, id string) (db.Quest, error) {
-	args := m.Called(ctx, id)
-	return args.Get(0).(db.Quest), args.Error(1)
+func (m *MockQuestService) CreateUserEntry(ctx context.Context, userId string, questId string, entryInput EntryUserInput) (Entry, error) {
+	args := m.Called(ctx, userId, questId, entryInput)
+	return args.Get(0).(Entry), args.Error(1)
 }
 
-func (m *MockQuestService) ListQuestEntries(ctx context.Context, questId string) ([]db.QuestEntry, error) {
-	args := m.Called(ctx, questId)
-	return args.Get(0).([]db.QuestEntry), args.Error(1)
+func (m *MockQuestService) ListEntries(ctx context.Context, userId string, questId string) ([]Entry, error) {
+	args := m.Called(ctx, userId, questId)
+	return args.Get(0).([]Entry), args.Error(1)
 }

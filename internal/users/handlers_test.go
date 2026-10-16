@@ -29,7 +29,7 @@ func TestCreateUserOk(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	user := CreateUserDto{
+	user := CreateUserRequest{
 		Username: "username",
 	}
 
@@ -52,10 +52,10 @@ func TestCreateUserOk(t *testing.T) {
 func TestCreateUserBadRequest(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
-		user CreateUserDto
+		user CreateUserRequest
 	}{
 		"missing username": {
-			user: CreateUserDto{
+			user: CreateUserRequest{
 				Username: "",
 			},
 		},
@@ -97,7 +97,7 @@ func TestCreateUserInternalServerError(t *testing.T) {
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
-	user := CreateUserDto{
+	user := CreateUserRequest{
 		Username: "username",
 	}
 
@@ -121,7 +121,7 @@ type MockUserService struct {
 	mock.Mock
 }
 
-func (m *MockUserService) Create(ctx context.Context, user CreateUserDto, userId string) (db.User, error) {
+func (m *MockUserService) Create(ctx context.Context, user CreateUserRequest, userId string) (db.User, error) {
 	args := m.Called(ctx, user, userId)
 	return args.Get(0).(db.User), args.Error(1)
 }

@@ -2,11 +2,11 @@ package media
 
 import "net/http"
 
-type PresignedUploadDto struct {
+type PresignedUploadRequest struct {
 	ContentType string `json:"contentType" validate:"required"`
 }
 
-type PresignedUploadResponseDto struct {
+type PresignedUploadResponse struct {
 	URL          string      `json:"url"`
 	ImageKey     string      `json:"imageKey"`
 	SignedHeader http.Header `json:"signedHeader"`

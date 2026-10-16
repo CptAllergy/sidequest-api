@@ -14,11 +14,11 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error)
-	GetById(ctx context.Context, id string) (db.Quest, error)
-	CreateEntry(ctx context.Context, entry CreateQuestEntryDto, userId string, questId string) (db.QuestEntry, error)
+	Create(ctx context.Context, userId string, quest CreateQuestRequest) (db.Quest, error)
+	GetById(ctx context.Context, userId string, questId string) (db.Quest, error)
 	ListByUserId(ctx context.Context, userId string) ([]db.Quest, error)
-	ListQuestEntries(ctx context.Context, questId string) ([]db.QuestEntry, error)
+	CreateUserEntry(ctx context.Context, userId string, questId string, entryInput EntryUserInput) (Entry, error)
+	ListEntries(ctx context.Context, userId string, questId string) ([]Entry, error)
 }
 
 type Handler struct {
@@ -42,7 +42,7 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 // TODO figure out pagination
 func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
-	identity, ok := auth.GetIdentityFromContext(r.Context())
+	identity, ok := auth.IdentityFromContext(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
@@ -61,9 +61,9 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO Recheck this mapping logic
-	var questsDto []QuestDto
+	var questsDto []QuestResponse
 	for _, quest := range quests {
-		questsDto = append(questsDto, mapQuestDto(quest))
+		questsDto = append(questsDto, toQuestResponse(quest))
 	}
 
 	// TODO should I use an envelope for this **helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"quests": all})*** what's the point of the envelope?
@@ -76,27 +76,27 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	identity, ok := auth.GetIdentityFromContext(r.Context())
+	userId, ok := auth.UserId(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
 		return
 	}
-	var createQuestDto CreateQuestDto
-	if err := json.Read(r, &createQuestDto); err != nil {
+	var createQuestRequest CreateQuestRequest
+	if err := json.Read(r, &createQuestRequest); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	err := h.validate.Struct(createQuestDto)
+	err := h.validate.Struct(createQuestRequest)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	createdQuest, err := h.srv.Create(r.Context(), createQuestDto, identity.Id)
+	createdQuest, err := h.srv.Create(r.Context(), userId, createQuestRequest)
 	if err != nil {
 		slog.Error("Error creating quest", "error", err)
 		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
@@ -109,7 +109,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Created quest", "id", createdQuest)
 	// TODO Recheck this mapping logic
-	err = json.Write(w, http.StatusOK, mapQuestDto(createdQuest))
+	err = json.Write(w, http.StatusOK, toQuestResponse(createdQuest))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -119,7 +119,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 	questId := chi.URLParam(r, "id")
-	quest, err := h.srv.GetById(r.Context(), questId)
+	userId, ok := auth.UserId(r.Context())
+	if !ok {
+		slog.Error("Error getting identity from context")
+		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		return
+	}
+
+	quest, err := h.srv.GetById(r.Context(), userId, questId)
 	// TODO add a not found error
 	if err != nil {
 		slog.Error("Error fetching quest", "error", err)
@@ -131,7 +138,7 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// TODO Recheck this mapping logic
-	err = json.Write(w, http.StatusOK, mapQuestDto(quest))
+	err = json.Write(w, http.StatusOK, toQuestResponse(quest))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -141,21 +148,28 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	questId := chi.URLParam(r, "id")
-	identity, ok := auth.GetIdentityFromContext(r.Context())
+	userId, ok := auth.UserId(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
 		return
 	}
 
-	var newEntry CreateQuestEntryDto
-	if err := json.Read(r, &newEntry); err != nil {
+	var createEntryRequest CreateEntryRequest
+	if err := json.Read(r, &createEntryRequest); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	createdEntry, err := h.srv.CreateEntry(r.Context(), newEntry, identity.Id, questId)
+	entryInput, err := createEntryRequest.decodeEntryInput()
+	if err != nil {
+		slog.Error("Error decoding entry input", "error", err)
+		http.Error(w, "Invalid entry content", http.StatusBadRequest)
+		return
+	}
+
+	createdEntry, err := h.srv.CreateUserEntry(r.Context(), userId, questId, entryInput)
 	if err != nil {
 		slog.Error("Error creating quest entry", "error", err)
 
@@ -177,7 +191,13 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, createdEntry)
+	response, err := toEntryResponse(createdEntry)
+	if err != nil {
+		slog.Error("Error mapping entry", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	err = json.Write(w, http.StatusOK, response)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -185,10 +205,17 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO make fetch entries
+// TODO finish fetch entries
 func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 	questId := chi.URLParam(r, "id")
-	quest, err := h.srv.ListQuestEntries(r.Context(), questId)
+	userId, ok := auth.UserId(r.Context())
+	if !ok {
+		slog.Error("Error getting identity from context")
+		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		return
+	}
+
+	entries, err := h.srv.ListEntries(r.Context(), userId, questId)
 	// TODO add a not found error
 	// TODO add a check to see if the userId of the token matches the owner of the quest, only he should see the entries, otherwise return forbidden
 	if err != nil {
@@ -200,7 +227,14 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, quest)
+	response, err := toEntryResponses(entries)
+	if err != nil {
+		slog.Error("Error mapping entries", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = json.Write(w, http.StatusOK, response)
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -238,23 +272,6 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 //	}
 //	w.WriteHeader(http.StatusNoContent)
 //}
-
-// TODO research how mappers are usually done in go, for now this should work
-func mapQuestDto(quest db.Quest) QuestDto {
-	return QuestDto{
-		Id:          quest.ID.String(),
-		UserId:      quest.UserID,
-		Title:       quest.Title,
-		Description: quest.Description,
-		Type:        quest.Type,
-		Status:      quest.Status,
-		// TODO now contains the url, see if it makes sense to rename somewhere else or create an intermediate object
-		ImageUrl: quest.ImageKey,
-		// TODO check what are the standard types that should be passed here
-		CreatedAt: quest.CreatedAt.Time.UTC().Format("2006-01-02T15:04:05.000000Z07:00"),
-		UpdatedAt: quest.UpdatedAt.Time.UTC().Format("2006-01-02T15:04:05.000000Z07:00"),
-	}
-}
 
 func registerValidations(v *validator.Validate) error {
 	err := v.RegisterValidation("quest_status", func(fl validator.FieldLevel) bool {

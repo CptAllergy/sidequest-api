@@ -39,12 +39,6 @@ type srv struct {
 	storage storage.Storage
 }
 
-// TODO move this type somewhere better
-type TextContent struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-}
-
 func NewService(store store, storage storage.Storage) Service {
 	return &srv{store: store, storage: storage}
 }
@@ -64,7 +58,7 @@ func (s *srv) ListByUserId(ctx context.Context, userId string) ([]db.Quest, erro
 	return quests, err
 }
 
-func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (db.Quest, error) {
+func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestRequest) (db.Quest, error) {
 	id := uuid.New().String()
 
 	var pgUUID pgtype.UUID
@@ -96,8 +90,8 @@ func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (
 		UserID:      userId,
 		Title:       quest.Title,
 		Description: quest.Description,
-		Type:        quest.Type,
-		Status:      quest.Status,
+		Type:        string(quest.Type),
+		Status:      string(quest.Status),
 		ImageKey:    newImageKey,
 	}
 
@@ -132,12 +126,16 @@ func (s *srv) Create(ctx context.Context, quest CreateQuestDto, userId string) (
 	return createdQuest, nil
 }
 
-func (s *srv) GetById(ctx context.Context, id string) (db.Quest, error) {
+func (s *srv) GetById(ctx context.Context, userId string, questId string) (db.Quest, error) {
+	if err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
+		return db.Quest{}, err
+	}
+
 	// Convert ID string to UUID
 	var pgUUID pgtype.UUID
-	err := pgUUID.Scan(id)
+	err := pgUUID.Scan(questId)
 	if err != nil {
-		return db.Quest{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, id, err)
+		return db.Quest{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
 	}
 
 	savedQuest, err := s.store.GetQuest(ctx, pgUUID)
@@ -151,63 +149,103 @@ func (s *srv) GetById(ctx context.Context, id string) (db.Quest, error) {
 	return savedQuest, nil
 }
 
-func (s *srv) CreateEntry(ctx context.Context, entry CreateQuestEntryDto, userId string, questId string) (db.QuestEntry, error) {
+func (s *srv) CreateUserEntry(ctx context.Context, userId string, questId string, entryInput EntryUserInput) (Entry, error) {
+	if err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
+		return Entry{}, err
+	}
+
+	entry := Entry{
+		Type:    entryInput.Type,
+		Content: entryInput.Content.(EntryContent),
+	}
+
+	createdEntry, err := s.persistEntry(ctx, entry, userId, questId)
+	if err != nil {
+		return Entry{}, err
+	}
+	return createdEntry, nil
+}
+
+func (s *srv) ListEntries(ctx context.Context, userId string, questId string) ([]Entry, error) {
+	if err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
+		return []Entry{}, err
+	}
 
 	var pgUUID pgtype.UUID
 	err := pgUUID.Scan(questId)
 	if err != nil {
-		return db.QuestEntry{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
+		return []Entry{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
 	}
 
-	textContent := TextContent{
-		Title:       entry.Title,
-		Description: entry.Description,
-	}
-	contentBytes, err := json.Marshal(textContent)
+	rows, err := s.store.ListQuestEntries(ctx, pgUUID)
 	if err != nil {
-		return db.QuestEntry{}, fmt.Errorf("%w: failed to marshal JSON: %v\"", ErrBadRequest, err)
+		return []Entry{}, err
+	}
+	mappedEntries := make([]Entry, 0, len(rows))
+	for _, row := range rows {
+		e, err := toEntryFromRow(row)
+		if err != nil {
+			return []Entry{}, err
+		}
+		mappedEntries = append(mappedEntries, e)
+	}
+	return mappedEntries, nil
+}
+
+func (s *srv) persistEntry(ctx context.Context, entry Entry, userId string, questId string) (Entry, error) {
+	var questUUID pgtype.UUID
+	err := questUUID.Scan(questId)
+	if err != nil {
+		return Entry{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
+	}
+
+	contentBytes, err := json.Marshal(entry.Content)
+	if err != nil {
+		return Entry{}, fmt.Errorf("%w: failed to marshal JSON: %v\"", ErrBadRequest, err)
 	}
 
 	createQuestEntryParams := db.CreateQuestEntryParams{
-		QuestID: pgUUID,
+		QuestID: questUUID,
 		UserID:  userId,
-		Type:    "TEXT",
+		Type:    string(entry.Type),
 		Content: contentBytes,
 	}
 
-	var savedEntry db.QuestEntry
-	err = s.store.ExecTx(ctx, func(qtx db.Querier) error {
+	var createdEntry db.QuestEntry
+	createdEntry, err = s.store.CreateQuestEntry(ctx, createQuestEntryParams)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Entry{}, ErrNotFound
+		}
+		return Entry{}, err
+	}
+
+	mappedEntry, err := toEntryFromRow(createdEntry)
+	if err != nil {
+		return Entry{}, err
+	}
+
+	return mappedEntry, nil
+}
+
+func (s *srv) authorizeQuestOwner(ctx context.Context, questId string, userId string) error {
+	var pgUUID pgtype.UUID
+	err := pgUUID.Scan(questId)
+	if err != nil {
+		return fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
+	}
+
+	// TODO this transaction isn't needed here but it's kept as an example, it can be removed after new ones are added
+	return s.store.ExecTx(ctx, func(qtx db.Querier) error {
 		quest, txErr := qtx.GetQuestForShare(ctx, pgUUID)
 		if txErr != nil {
 			return txErr
 		}
+		// Check if the user is the owner of the quest
 		if quest.UserID != userId {
 			return ErrForbidden
 		}
-
-		savedEntry, txErr = qtx.CreateQuestEntry(ctx, createQuestEntryParams)
-		if txErr != nil {
-			return txErr
-		}
 		return nil
 	})
-
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return db.QuestEntry{}, ErrNotFound
-		}
-		return db.QuestEntry{}, err
-	}
-
-	return savedEntry, nil
-}
-
-func (s *srv) ListQuestEntries(ctx context.Context, questId string) ([]db.QuestEntry, error) {
-	var pgUUID pgtype.UUID
-	err := pgUUID.Scan(questId)
-	if err != nil {
-		return []db.QuestEntry{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
-	}
-
-	return s.store.ListQuestEntries(ctx, pgUUID)
 }

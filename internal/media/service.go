@@ -29,7 +29,7 @@ func NewService(storage storage.Storage) Service {
 // TODO consider saving the userId in metadata, so that when quests or other objects are created, the userId can be matched to the file for authorization
 func (s *srv) CreatePresignedPutUrl(
 	ctx context.Context,
-	presignedUploadDto PresignedUploadDto) (
+	presignedUploadDto PresignedUploadRequest) (
 	request *v4.PresignedHTTPRequest,
 	objectKey string,
 	err error,

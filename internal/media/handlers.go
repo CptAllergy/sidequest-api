@@ -13,7 +13,7 @@ import (
 type Service interface {
 	CreatePresignedPutUrl(
 		ctx context.Context,
-		presignedUploadDto PresignedUploadDto) (
+		presignedUploadDto PresignedUploadRequest) (
 		request *v4.PresignedHTTPRequest,
 		objectKey string,
 		err error,
@@ -33,7 +33,7 @@ func NewHandler(srv Service) *Handler {
 
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 func (h *Handler) PresignedUpload(w http.ResponseWriter, r *http.Request) {
-	var presignedUploadDto PresignedUploadDto
+	var presignedUploadDto PresignedUploadRequest
 	if err := json.Read(r, &presignedUploadDto); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -57,7 +57,7 @@ func (h *Handler) PresignedUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := PresignedUploadResponseDto{
+	res := PresignedUploadResponse{
 		URL:          uploadInfo.URL,
 		ImageKey:     objectKey,
 		SignedHeader: uploadInfo.SignedHeader,

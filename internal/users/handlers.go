@@ -14,7 +14,7 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, user CreateUserDto, userId string) (db.User, error)
+	Create(ctx context.Context, user CreateUserRequest, userId string) (db.User, error)
 	GetByUsername(ctx context.Context, username string) (db.User, error)
 	GetById(ctx context.Context, id string) (db.User, error)
 	List(ctx context.Context) ([]db.User, error)
@@ -83,7 +83,7 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
-	identity, ok := auth.GetIdentityFromContext(r.Context())
+	identity, ok := auth.IdentityFromContext(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
@@ -114,13 +114,13 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 // TODO validations should include lengths of fields
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	identity, ok := auth.GetIdentityFromContext(r.Context())
+	identity, ok := auth.IdentityFromContext(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
 		return
 	}
-	var newUser CreateUserDto
+	var newUser CreateUserRequest
 	if err := json.Read(r, &newUser); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
