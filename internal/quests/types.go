@@ -25,6 +25,11 @@ type QuestResponse struct {
 	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
+type QuestCursor struct {
+	UpdatedAt time.Time
+	Id        string
+}
+
 type StatusType string
 
 const (
@@ -74,6 +79,11 @@ type EntryResponse struct {
 	Icon      string               `json:"icon"`
 	CreatedAt time.Time            `json:"createdAt"`
 	UpdatedAt time.Time            `json:"updatedAt"`
+}
+
+type EntryCursor struct {
+	CreatedAt time.Time
+	Id        string
 }
 
 type EntryType string

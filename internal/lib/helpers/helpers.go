@@ -8,8 +8,6 @@ import (
 
 // TODO understand what is useful from this class and if I can use it in some better manner
 
-type Envelope map[string]interface{}
-
 func ReadJSON(w http.ResponseWriter, r *http.Request, data interface{}) error {
 	maxByte := 1048576
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxByte))

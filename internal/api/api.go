@@ -97,7 +97,6 @@ func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 				r.Use(app.AccountMiddleware)
 				// Require full account
 				r.Get("/{username}", userHandler.GetByUsername)
-				r.Get("/", userHandler.List)
 			})
 		})
 	})

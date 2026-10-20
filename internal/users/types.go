@@ -1,7 +1,19 @@
 package users
 
-// TODO create return type DTOs
+import (
+	"time"
+)
 
 type CreateUserRequest struct {
 	Username string `json:"username" validate:"required"`
+}
+
+type UserResponse struct {
+	ID          string    `json:"id"`
+	Username    string    `json:"username"`
+	DisplayName string    `json:"displayName"`
+	AvatarUrl   *string   `json:"avatarUrl"`
+	Bio         *string   `json:"bio"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }

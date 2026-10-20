@@ -14,10 +14,9 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, user CreateUserRequest, userId string) (db.User, error)
+	Create(ctx context.Context, userId string, user CreateUserRequest) (db.User, error)
 	GetByUsername(ctx context.Context, username string) (db.User, error)
-	GetById(ctx context.Context, id string) (db.User, error)
-	List(ctx context.Context) ([]db.User, error)
+	GetById(ctx context.Context, userId string) (db.User, error)
 }
 
 type Handler struct {
@@ -40,27 +39,6 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 // TODO can have some generic error helper to help reduce the code duplication
 
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
-// TODO figure out pagination
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	users, err := h.srv.List(r.Context())
-	if err != nil {
-		slog.Error("Error listing users", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-	// TODO should I use an envelope for this **helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"quests": all})*** what's the point of the envelope?
-	err = json.Write(w, http.StatusOK, users)
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
 func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 	user, err := h.srv.GetByUsername(r.Context(), username)
@@ -74,7 +52,7 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, user)
+	err = json.Write(w, http.StatusOK, toUserResponse(user))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -83,14 +61,14 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
-	identity, ok := auth.IdentityFromContext(r.Context())
+	userId, ok := auth.UserId(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
 		return
 	}
 
-	user, err := h.srv.GetById(r.Context(), identity.Id)
+	user, err := h.srv.GetById(r.Context(), userId)
 	if err != nil {
 		slog.Error("Error fetching user", "error", err)
 		if errors.Is(err, ErrNotFound) {
@@ -104,7 +82,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, user)
+	err = json.Write(w, http.StatusOK, toUserResponse(user))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -112,9 +90,9 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO validations should include lengths of fields
+// TODO validations should include lengths of fields, maybe bring back validator
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	identity, ok := auth.IdentityFromContext(r.Context())
+	userId, ok := auth.UserId(r.Context())
 	if !ok {
 		slog.Error("Error getting identity from context")
 		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
@@ -134,7 +112,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdQuest, err := h.srv.Create(r.Context(), newUser, identity.Id)
+	createdUser, err := h.srv.Create(r.Context(), userId, newUser)
 	// TODO handle conflict error
 	if err != nil {
 		slog.Error("Error creating user", "error", err)
@@ -145,8 +123,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	slog.Info("User created successfully", "user_id", createdQuest.ID, "username", createdQuest.Username)
-	err = json.Write(w, http.StatusOK, createdQuest)
+	slog.Info("User created successfully", "user_id", createdUser.ID, "username", createdUser.Username)
+	err = json.Write(w, http.StatusOK, toUserResponse(createdUser))
 	if err != nil {
 		slog.Error("Error writing response", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)

@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
+	"github.com/cptallergy/sidequest-api/internal/lib/pagination"
 	"github.com/cptallergy/sidequest-api/internal/lib/validation"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -59,7 +59,7 @@ func TestCreateQuestOk(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockQuestService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.Quest{}, nil)
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(Quest{}, nil)
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
@@ -131,7 +131,7 @@ func TestCreateQuestBadRequest(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockQuestService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.Quest{}, nil)
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(Quest{}, nil)
 	h := NewHandler(mockService, validate)
 
 	for name, tt := range tests {
@@ -161,7 +161,7 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 	validate := validation.SetupValidator()
 	mockService := &MockQuestService{}
 
-	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.Quest{}, errors.New("some error"))
+	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(Quest{}, errors.New("some error"))
 	h := NewHandler(mockService, validate)
 
 	// 2. Create Request
@@ -191,19 +191,19 @@ type MockQuestService struct {
 	mock.Mock
 }
 
-func (m *MockQuestService) Create(ctx context.Context, userId string, quest CreateQuestRequest) (db.Quest, error) {
+func (m *MockQuestService) Create(ctx context.Context, userId string, quest CreateQuestRequest) (Quest, error) {
 	args := m.Called(ctx, userId, quest)
-	return args.Get(0).(db.Quest), args.Error(1)
+	return args.Get(0).(Quest), args.Error(1)
 }
 
-func (m *MockQuestService) GetById(ctx context.Context, userId string, questId string) (db.Quest, error) {
+func (m *MockQuestService) GetById(ctx context.Context, userId string, questId string) (Quest, error) {
 	args := m.Called(ctx, userId, questId)
-	return args.Get(0).(db.Quest), args.Error(1)
+	return args.Get(0).(Quest), args.Error(1)
 }
 
-func (m *MockQuestService) ListByUserId(ctx context.Context, userId string) ([]db.Quest, error) {
-	args := m.Called(ctx, userId)
-	return args.Get(0).([]db.Quest), args.Error(1)
+func (m *MockQuestService) ListByUserId(ctx context.Context, userId string, cursor *QuestCursor, limit int) (pagination.Page[Quest], error) {
+	args := m.Called(ctx, userId, cursor, limit)
+	return args.Get(0).(pagination.Page[Quest]), args.Error(1)
 }
 
 func (m *MockQuestService) CreateUserEntry(ctx context.Context, userId string, questId string, entryInput EntryUserInput) (Entry, error) {
@@ -211,7 +211,7 @@ func (m *MockQuestService) CreateUserEntry(ctx context.Context, userId string, q
 	return args.Get(0).(Entry), args.Error(1)
 }
 
-func (m *MockQuestService) ListEntries(ctx context.Context, userId string, questId string) ([]Entry, error) {
-	args := m.Called(ctx, userId, questId)
-	return args.Get(0).([]Entry), args.Error(1)
+func (m *MockQuestService) ListEntries(ctx context.Context, userId string, questId string, cursor *EntryCursor, limit int) (pagination.Page[Entry], error) {
+	args := m.Called(ctx, userId, questId, cursor, limit)
+	return args.Get(0).(pagination.Page[Entry]), args.Error(1)
 }

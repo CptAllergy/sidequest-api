@@ -13,7 +13,6 @@ type store interface {
 	CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error)
 	GetUserById(ctx context.Context, id string) (db.User, error)
 	GetUserByUsername(ctx context.Context, username string) (db.User, error)
-	ListUsers(ctx context.Context) ([]db.User, error)
 }
 
 type srv struct {
@@ -29,7 +28,7 @@ func NewService(store store) Service {
 	return &srv{store}
 }
 
-func (s *srv) Create(ctx context.Context, user CreateUserRequest, userId string) (db.User, error) {
+func (s *srv) Create(ctx context.Context, userId string, user CreateUserRequest) (db.User, error) {
 	dbUserParams := db.CreateUserParams{ID: userId, Username: user.Username, DisplayName: user.Username}
 	savedUser, err := s.store.CreateUser(ctx, dbUserParams)
 	if err != nil {
@@ -52,8 +51,4 @@ func (s *srv) GetById(ctx context.Context, id string) (db.User, error) {
 	}
 
 	return savedUser, nil
-}
-
-func (s *srv) List(ctx context.Context) ([]db.User, error) {
-	return s.store.ListUsers(ctx)
 }

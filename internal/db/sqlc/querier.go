@@ -19,9 +19,11 @@ type Querier interface {
 	GetUserById(ctx context.Context, id string) (User, error)
 	GetUserByIdForShare(ctx context.Context, id string) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
-	ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]QuestEntry, error)
-	ListQuestsByUserId(ctx context.Context, userID string) ([]Quest, error)
-	ListUsers(ctx context.Context) ([]User, error)
+	ListQuestEntriesAfter(ctx context.Context, arg ListQuestEntriesAfterParams) ([]QuestEntry, error)
+	ListQuestEntriesFirst(ctx context.Context, arg ListQuestEntriesFirstParams) ([]QuestEntry, error)
+	ListQuestsByUserIdAfter(ctx context.Context, arg ListQuestsByUserIdAfterParams) ([]Quest, error)
+	ListQuestsByUserIdFirst(ctx context.Context, arg ListQuestsByUserIdFirstParams) ([]Quest, error)
+	TouchQuest(ctx context.Context, id pgtype.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)

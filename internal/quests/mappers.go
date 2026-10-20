@@ -7,20 +7,27 @@ import (
 	db "github.com/cptallergy/sidequest-api/internal/db/sqlc"
 )
 
-func toQuestResponse(q db.Quest) QuestResponse {
+func toQuestResponse(q Quest) QuestResponse {
 	return QuestResponse{
-		Id:          q.ID.String(),
-		UserId:      q.UserID,
+		Id:          q.Id,
+		UserId:      q.UserId,
 		Title:       q.Title,
 		Description: q.Description,
-		// TODO validate these 2
-		Type:   QuestType(q.Type),
-		Status: StatusType(q.Status),
-		// It's expected that ImageKey contains a presigned url at this stage, instead of just the key, an intermediate object may help
-		ImageUrl:  q.ImageKey,
-		CreatedAt: q.CreatedAt.Time,
-		UpdatedAt: q.UpdatedAt.Time,
+		Type:        q.Type,
+		Status:      q.Status,
+		ImageUrl:    q.ImageUrl,
+		CreatedAt:   q.CreatedAt,
+		UpdatedAt:   q.UpdatedAt,
 	}
+}
+
+func toQuestResponses(qs []Quest) []QuestResponse {
+	results := make([]QuestResponse, 0, len(qs))
+	for _, q := range qs {
+		r := toQuestResponse(q)
+		results = append(results, r)
+	}
+	return results
 }
 
 func toEntryResponse(e Entry) (EntryResponse, error) {
@@ -79,6 +86,21 @@ func (e *CreateEntryRequest) decodeEntryInput() (EntryUserInput, error) {
 	}, nil
 }
 
+func toQuestFromRow(q db.Quest, imageUrl *string) Quest {
+	return Quest{
+		Id:          q.ID.String(),
+		UserId:      q.UserID,
+		Title:       q.Title,
+		Description: q.Description,
+		// TODO validate these 2
+		Type:      QuestType(q.Type),
+		Status:    StatusType(q.Status),
+		ImageUrl:  imageUrl,
+		CreatedAt: q.CreatedAt.Time,
+		UpdatedAt: q.UpdatedAt.Time,
+	}
+}
+
 func toEntryFromRow(e db.QuestEntry) (Entry, error) {
 	var (
 		content EntryContent
@@ -127,4 +149,18 @@ func decodeContent[T EntryContent](b []byte) (EntryContent, error) {
 		return nil, err
 	}
 	return c, nil
+}
+
+func toCursorFromQuest(q Quest) QuestCursor {
+	return QuestCursor{
+		UpdatedAt: q.UpdatedAt,
+		Id:        q.Id,
+	}
+}
+
+func toCursorFromEntry(e Entry) EntryCursor {
+	return EntryCursor{
+		CreatedAt: e.CreatedAt,
+		Id:        e.Id,
+	}
 }

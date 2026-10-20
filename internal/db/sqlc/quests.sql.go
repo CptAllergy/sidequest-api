@@ -132,14 +132,29 @@ func (q *Queries) GetQuestForShare(ctx context.Context, id pgtype.UUID) (Quest, 
 	return i, err
 }
 
-const listQuestEntries = `-- name: ListQuestEntries :many
+const listQuestEntriesAfter = `-- name: ListQuestEntriesAfter :many
 SELECT id, quest_id, user_id, type, content, created_at, updated_at
 FROM quest_entries
 WHERE quest_id = $1
+    AND (created_at, id) < ($2::timestamptz, $3::uuid)
+ORDER BY created_at DESC, id DESC
+LIMIT $4
 `
 
-func (q *Queries) ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]QuestEntry, error) {
-	rows, err := q.db.Query(ctx, listQuestEntries, questID)
+type ListQuestEntriesAfterParams struct {
+	QuestID        pgtype.UUID        `json:"quest_id"`
+	AfterCreatedAt pgtype.Timestamptz `json:"after_created_at"`
+	AfterID        pgtype.UUID        `json:"after_id"`
+	Lim            int32              `json:"lim"`
+}
+
+func (q *Queries) ListQuestEntriesAfter(ctx context.Context, arg ListQuestEntriesAfterParams) ([]QuestEntry, error) {
+	rows, err := q.db.Query(ctx, listQuestEntriesAfter,
+		arg.QuestID,
+		arg.AfterCreatedAt,
+		arg.AfterID,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -166,14 +181,70 @@ func (q *Queries) ListQuestEntries(ctx context.Context, questID pgtype.UUID) ([]
 	return items, nil
 }
 
-const listQuestsByUserId = `-- name: ListQuestsByUserId :many
+const listQuestEntriesFirst = `-- name: ListQuestEntriesFirst :many
+SELECT id, quest_id, user_id, type, content, created_at, updated_at
+FROM quest_entries
+WHERE quest_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2
+`
+
+type ListQuestEntriesFirstParams struct {
+	QuestID pgtype.UUID `json:"quest_id"`
+	Lim     int32       `json:"lim"`
+}
+
+func (q *Queries) ListQuestEntriesFirst(ctx context.Context, arg ListQuestEntriesFirstParams) ([]QuestEntry, error) {
+	rows, err := q.db.Query(ctx, listQuestEntriesFirst, arg.QuestID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []QuestEntry{}
+	for rows.Next() {
+		var i QuestEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.QuestID,
+			&i.UserID,
+			&i.Type,
+			&i.Content,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listQuestsByUserIdAfter = `-- name: ListQuestsByUserIdAfter :many
 SELECT id, user_id, title, description, type, status, image_key, created_at, updated_at
 FROM quests
 WHERE user_id = $1
+  AND (updated_at, id) < ($2::timestamptz, $3::uuid)
+ORDER BY updated_at DESC, id DESC
+LIMIT $4
 `
 
-func (q *Queries) ListQuestsByUserId(ctx context.Context, userID string) ([]Quest, error) {
-	rows, err := q.db.Query(ctx, listQuestsByUserId, userID)
+type ListQuestsByUserIdAfterParams struct {
+	UserID         string             `json:"user_id"`
+	AfterUpdatedAt pgtype.Timestamptz `json:"after_updated_at"`
+	AfterID        pgtype.UUID        `json:"after_id"`
+	Lim            int32              `json:"lim"`
+}
+
+func (q *Queries) ListQuestsByUserIdAfter(ctx context.Context, arg ListQuestsByUserIdAfterParams) ([]Quest, error) {
+	rows, err := q.db.Query(ctx, listQuestsByUserIdAfter,
+		arg.UserID,
+		arg.AfterUpdatedAt,
+		arg.AfterID,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -200,4 +271,56 @@ func (q *Queries) ListQuestsByUserId(ctx context.Context, userID string) ([]Ques
 		return nil, err
 	}
 	return items, nil
+}
+
+const listQuestsByUserIdFirst = `-- name: ListQuestsByUserIdFirst :many
+SELECT id, user_id, title, description, type, status, image_key, created_at, updated_at
+FROM quests
+WHERE user_id = $1
+ORDER BY updated_at DESC, id DESC
+LIMIT $2
+`
+
+type ListQuestsByUserIdFirstParams struct {
+	UserID string `json:"user_id"`
+	Lim    int32  `json:"lim"`
+}
+
+func (q *Queries) ListQuestsByUserIdFirst(ctx context.Context, arg ListQuestsByUserIdFirstParams) ([]Quest, error) {
+	rows, err := q.db.Query(ctx, listQuestsByUserIdFirst, arg.UserID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Quest{}
+	for rows.Next() {
+		var i Quest
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.Type,
+			&i.Status,
+			&i.ImageKey,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const touchQuest = `-- name: TouchQuest :exec
+UPDATE quests SET updated_at = now() WHERE id = $1
+`
+
+func (q *Queries) TouchQuest(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, touchQuest, id)
+	return err
 }
