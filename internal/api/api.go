@@ -43,6 +43,7 @@ func (app *Application) Mount() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
+	r.Use(middleware.RequestSize(1 << 20)) // 1 MiB
 
 	r.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
 		Level:         slog.LevelInfo,

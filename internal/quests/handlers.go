@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
-	"github.com/cptallergy/sidequest-api/internal/lib/json"
+	"github.com/cptallergy/sidequest-api/internal/lib/httpx"
 	"github.com/cptallergy/sidequest-api/internal/lib/pagination"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
@@ -38,6 +38,7 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	}
 }
 
+// TODO replace all errors with Error and InternalError
 // TODO have good error messages for the users
 
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
@@ -90,17 +91,11 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 		next = &c
 	}
 
-	err = json.Write(w, http.StatusOK,
+	httpx.Write(w, http.StatusOK,
 		pagination.PageResponse[QuestResponse]{
 			Items:      items,
 			NextCursor: next,
 		})
-
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +106,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var createQuestRequest CreateQuestRequest
-	if err := json.Read(r, &createQuestRequest); err != nil {
+	if err := httpx.Read(r, &createQuestRequest); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -136,12 +131,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("Created quest", "id", createdQuest.Id)
-	err = json.Write(w, http.StatusOK, toQuestResponse(createdQuest))
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	httpx.Write(w, http.StatusOK, toQuestResponse(createdQuest))
 }
 
 func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
@@ -164,12 +154,7 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, toQuestResponse(quest))
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	httpx.Write(w, http.StatusOK, toQuestResponse(quest))
 }
 
 func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +167,7 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var createEntryRequest CreateEntryRequest
-	if err := json.Read(r, &createEntryRequest); err != nil {
+	if err := httpx.Read(r, &createEntryRequest); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -223,12 +208,7 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, response)
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	httpx.Write(w, http.StatusOK, response)
 }
 
 func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
@@ -287,16 +267,11 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 		next = &c
 	}
 
-	err = json.Write(w, http.StatusOK,
+	httpx.Write(w, http.StatusOK,
 		pagination.PageResponse[EntryResponse]{
 			Items:      items,
 			NextCursor: next,
 		})
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
 }
 
 // TODO implement handlers
@@ -304,7 +279,7 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 //func (q QuestHandler) UpdateQuest(w http.ResponseWriter, r *http.Request) {
 //	id := chi.URLParam(r, "id")
 //	var quest Quest
-//	err := json.go.NewDecoder(r.Body).Decode(&quest)
+//	err := httpx.go.NewDecoder(r.Body).Decode(&quest)
 //	if err != nil {
 //		http.Error(w, err.Error(), http.StatusBadRequest)
 //		return
@@ -314,7 +289,7 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 //		http.Error(w, "Quest not found", http.StatusNotFound)
 //		return
 //	}
-//	err = json.go.NewEncoder(w).Encode(updatedQuest)
+//	err = httpx.go.NewEncoder(w).Encode(updatedQuest)
 //	if err != nil {
 //		http.Error(w, "Internal error", http.StatusInternalServerError)
 //		return

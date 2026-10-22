@@ -8,7 +8,7 @@ import (
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
-	"github.com/cptallergy/sidequest-api/internal/lib/json"
+	"github.com/cptallergy/sidequest-api/internal/lib/httpx"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 )
@@ -35,6 +35,7 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	}
 }
 
+// TODO replace all errors with Error and InternalError
 // TODO have more helpful error messages sent to the user
 // TODO can have some generic error helper to help reduce the code duplication
 
@@ -52,12 +53,7 @@ func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, toUserResponse(user))
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	httpx.Write(w, http.StatusOK, toUserResponse(user))
 }
 
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -82,12 +78,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = json.Write(w, http.StatusOK, toUserResponse(user))
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	httpx.Write(w, http.StatusOK, toUserResponse(user))
 }
 
 // TODO validations should include lengths of fields, maybe bring back validator
@@ -99,7 +90,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var newUser CreateUserRequest
-	if err := json.Read(r, &newUser); err != nil {
+	if err := httpx.Read(r, &newUser); err != nil {
 		slog.Error("Error reading request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -124,12 +115,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("User created successfully", "user_id", createdUser.ID, "username", createdUser.Username)
-	err = json.Write(w, http.StatusOK, toUserResponse(createdUser))
-	if err != nil {
-		slog.Error("Error writing response", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	httpx.Write(w, http.StatusOK, toUserResponse(createdUser))
 }
 
 // TODO add required validations
