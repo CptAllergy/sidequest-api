@@ -32,12 +32,6 @@ type store interface {
 	TouchQuest(ctx context.Context, id pgtype.UUID) error
 }
 
-var (
-	ErrNotFound   = errors.New("not found")
-	ErrForbidden  = errors.New("user does not have permission to perform this action")
-	ErrBadRequest = errors.New("invalid parameters")
-)
-
 type srv struct {
 	store   store
 	storage storage.Storage
@@ -188,7 +182,7 @@ func (s *srv) GetById(ctx context.Context, userId string, questId string) (Quest
 	row, err := s.store.GetQuest(ctx, pgUUID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Quest{}, ErrNotFound
+			return Quest{}, ErrQuestNotFound
 		}
 		return Quest{}, err
 	}
@@ -308,7 +302,7 @@ func (s *srv) persistEntry(
 	createdEntry, err = qtx.CreateQuestEntry(ctx, createQuestEntryParams)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Entry{}, ErrNotFound
+			return Entry{}, ErrQuestNotFound
 		}
 		return Entry{}, fmt.Errorf("inserting entry: %w\"", err)
 	}

@@ -2,8 +2,6 @@ package quests
 
 import (
 	"context"
-	"errors"
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -28,7 +26,7 @@ type Handler struct {
 }
 
 func NewHandler(srv Service, validate *validator.Validate) *Handler {
-	// TODO handle errors
+	// TODO handle error
 	// TODO ensure we get helpful error messages when some validation fails
 	registerValidations(validate)
 
@@ -38,15 +36,10 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	}
 }
 
-// TODO replace all errors with Error and InternalError
-// TODO have good error messages for the users
-
-// TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -56,25 +49,20 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	if str := query.Get("limit"); str != "" {
 		limit, err = strconv.Atoi(str)
 		if err != nil || limit < 1 {
-			http.Error(w, "Limit must be a positive integer", http.StatusBadRequest)
+			httpx.Error(w, http.StatusBadRequest, "limit must be a positive integer")
 			return
 		}
 	}
 
 	cursor, err := pagination.Decode[QuestCursor](query.Get("cursor"))
 	if err != nil {
-		http.Error(w, "invalid cursor", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid cursor")
 		return
 	}
 
 	page, err := h.srv.ListByUserId(r.Context(), userId, cursor, limit)
 	if err != nil {
-		slog.Error("Error listing quests", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
 
@@ -84,8 +72,7 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 		last := page.Items[len(page.Items)-1]
 		c, err := pagination.Encode(toCursorFromQuest(last))
 		if err != nil {
-			slog.Error("Error encoding cursor", "error", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			httpx.InternalError(w, r, err)
 			return
 		}
 		next = &c
@@ -101,36 +88,26 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	var createQuestRequest CreateQuestRequest
-	if err := httpx.Read(r, &createQuestRequest); err != nil {
-		slog.Error("Error reading request body", "error", err)
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if ok = httpx.Read(w, r, &createQuestRequest); !ok {
 		return
 	}
 
 	err := h.validate.Struct(createQuestRequest)
 	if err != nil {
-		slog.Error("Error creating quest", "error", err)
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	createdQuest, err := h.srv.Create(r.Context(), userId, createQuestRequest)
 	if err != nil {
-		slog.Error("Error creating quest", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
 
-	slog.Info("Created quest", "id", createdQuest.Id)
 	httpx.Write(w, http.StatusOK, toQuestResponse(createdQuest))
 }
 
@@ -138,22 +115,17 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 	questId := chi.URLParam(r, "id")
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	quest, err := h.srv.GetById(r.Context(), userId, questId)
 	// TODO add a not found error
 	if err != nil {
-		slog.Error("Error fetching quest", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
+
 	httpx.Write(w, http.StatusOK, toQuestResponse(quest))
 }
 
@@ -161,53 +133,32 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 	questId := chi.URLParam(r, "id")
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	var createEntryRequest CreateEntryRequest
-	if err := httpx.Read(r, &createEntryRequest); err != nil {
-		slog.Error("Error reading request body", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if ok = httpx.Read(w, r, &createEntryRequest); !ok {
 		return
 	}
 
 	entryInput, err := createEntryRequest.decodeEntryInput()
 	if err != nil {
-		slog.Error("Error decoding entry input", "error", err)
-		http.Error(w, "Invalid entry content", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	createdEntry, err := h.srv.CreateUserEntry(r.Context(), userId, questId, entryInput)
 	if err != nil {
-		slog.Error("Error creating quest entry", "error", err)
-
-		// TODO check warning and pull out condition for less nesting
-		if errors.Is(err, ErrNotFound) {
-			http.Error(w, "quest not found", http.StatusNotFound)
-			return
-		}
-
-		if errors.Is(err, ErrForbidden) {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
-
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
 	response, err := toEntryResponse(createdEntry)
 	if err != nil {
-		slog.Error("Error mapping entry", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httpx.InternalError(w, r, err)
 		return
 	}
+
 	httpx.Write(w, http.StatusOK, response)
 }
 
@@ -215,8 +166,7 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 	questId := chi.URLParam(r, "id")
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -226,33 +176,27 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 	if str := query.Get("limit"); str != "" {
 		limit, err = strconv.Atoi(str)
 		if err != nil || limit < 1 {
-			http.Error(w, "Limit must be a positive integer", http.StatusBadRequest)
+			httpx.Error(w, http.StatusBadRequest, "limit must be a positive integer")
 			return
 		}
 	}
 
 	cursor, err := pagination.Decode[EntryCursor](query.Get("cursor"))
 	if err != nil {
-		http.Error(w, "invalid cursor", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid cursor")
 		return
 	}
 
 	page, err := h.srv.ListEntries(r.Context(), userId, questId, cursor, limit)
 	// TODO add a not found error and catch forbidden error as well
 	if err != nil {
-		slog.Error("Error fetching quest entries", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
 
 	items, err := toEntryResponses(page.Items)
 	if err != nil {
-		slog.Error("Error mapping entries", "error", err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		httpx.InternalError(w, r, err)
 		return
 	}
 	var next *string
@@ -260,8 +204,7 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 		last := page.Items[len(page.Items)-1]
 		c, err := pagination.Encode(toCursorFromEntry(last))
 		if err != nil {
-			slog.Error("Error encoding cursor", "error", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			httpx.InternalError(w, r, err)
 			return
 		}
 		next = &c

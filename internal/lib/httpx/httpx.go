@@ -1,7 +1,9 @@
 package httpx
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -26,17 +28,34 @@ func Write(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-func Read(r *http.Request, data any) error {
+// Read decodes the json request body into data. On failure it writes the error response and returns false
+func Read(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
 	decoder := json.NewDecoder(r.Body)
-	return decoder.Decode(data)
+	if err := decoder.Decode(data); err != nil {
+		// TODO add a RequestEntityTooLarge check for chi middleware
+		Error(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	return true
 }
 
 func Error(w http.ResponseWriter, status int, msg string) {
 	Write(w, status, errorResponse{Error: msg})
 }
 
-// TODO USE LOWERCASE LETTERS FOR ERROR RESPONSES, NO PERIODS
 func InternalError(w http.ResponseWriter, r *http.Request, err error) {
+	switch ctxErr := r.Context().Err(); {
+	case errors.Is(ctxErr, context.DeadlineExceeded):
+		// Chi timeout
+		slog.WarnContext(r.Context(), "request timed out",
+			"err", err,
+			"path", r.URL.Path)
+		return
+
+	case errors.Is(ctxErr, context.Canceled):
+		// Client disconnected
+		return
+	}
 	slog.ErrorContext(r.Context(), "internal error",
 		"err", err,
 		"method", r.Method,

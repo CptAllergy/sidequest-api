@@ -2,7 +2,6 @@ package media
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"mime"
 
@@ -17,11 +16,6 @@ type srv struct {
 	storage storage.Storage
 }
 
-var (
-	ErrPresigned            = errors.New("failed to create presigned URL")
-	ErrUnsupportedMediaType = errors.New("unsupported or invalid image content type")
-)
-
 func NewService(storage storage.Storage) Service {
 	return &srv{storage}
 }
@@ -29,7 +23,8 @@ func NewService(storage storage.Storage) Service {
 // TODO consider saving the userId in metadata, so that when quests or other objects are created, the userId can be matched to the file for authorization
 func (s *srv) CreatePresignedPutUrl(
 	ctx context.Context,
-	presignedUploadDto PresignedUploadRequest) (
+	presignedUploadDto PresignedUploadRequest,
+) (
 	request *v4.PresignedHTTPRequest,
 	objectKey string,
 	err error,
@@ -42,7 +37,7 @@ func (s *srv) CreatePresignedPutUrl(
 	objectKey = fmt.Sprintf("%s/%s%s", tempDir, uuid.New().String(), ext)
 	uploadInfo, err := s.storage.PresignPutUrl(ctx, objectKey, mediaType, 3600)
 	if err != nil {
-		return nil, "", ErrPresigned
+		return nil, "", err
 	}
 	return uploadInfo, objectKey, nil
 }

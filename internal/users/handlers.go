@@ -2,8 +2,6 @@ package users
 
 import (
 	"context"
-	"errors"
-	"log/slog"
 	"net/http"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
@@ -25,7 +23,7 @@ type Handler struct {
 }
 
 func NewHandler(srv Service, validate *validator.Validate) *Handler {
-	// TODO handle errors
+	// TODO handle errors.go
 	// TODO ensure we get helpful error messages when some validation fails
 	registerValidations(validate)
 
@@ -35,49 +33,32 @@ func NewHandler(srv Service, validate *validator.Validate) *Handler {
 	}
 }
 
-// TODO replace all errors with Error and InternalError
-// TODO have more helpful error messages sent to the user
-// TODO can have some generic error helper to help reduce the code duplication
-
 // TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
-	user, err := h.srv.GetByUsername(r.Context(), username)
-	// TODO add a not found error
-	if err != nil {
-		slog.Error("Error fetching user", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
 
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+	user, err := h.srv.GetByUsername(r.Context(), username)
+	if err != nil {
+		writeError(w, r, err)
 		return
 	}
+
 	httpx.Write(w, http.StatusOK, toUserResponse(user))
 }
 
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	user, err := h.srv.GetById(r.Context(), userId)
 	if err != nil {
-		slog.Error("Error fetching user", "error", err)
-		if errors.Is(err, ErrNotFound) {
-			http.Error(w, "user not found", http.StatusNotFound)
-			return
-		}
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
+
 	httpx.Write(w, http.StatusOK, toUserResponse(user))
 }
 
@@ -85,36 +66,28 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
-		slog.Error("Error getting identity from context")
-		http.Error(w, "Error getting identity from context", http.StatusUnauthorized)
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	var newUser CreateUserRequest
-	if err := httpx.Read(r, &newUser); err != nil {
-		slog.Error("Error reading request body", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if ok = httpx.Read(w, r, &newUser); !ok {
 		return
 	}
 
+	// TODO helpful errors.go here?
 	err := h.validate.Struct(newUser)
 	if err != nil {
-		slog.Error("Error creating user", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		httpx.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	createdUser, err := h.srv.Create(r.Context(), userId, newUser)
 	// TODO handle conflict error
 	if err != nil {
-		slog.Error("Error creating user", "error", err)
-		if errors.Is(r.Context().Err(), context.DeadlineExceeded) {
-			return
-		}
-
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		writeError(w, r, err)
 		return
 	}
-	slog.Info("User created successfully", "user_id", createdUser.ID, "username", createdUser.Username)
+
 	httpx.Write(w, http.StatusOK, toUserResponse(createdUser))
 }
 

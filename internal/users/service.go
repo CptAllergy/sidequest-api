@@ -19,11 +19,6 @@ type srv struct {
 	store store
 }
 
-var (
-	ErrNotFound  = errors.New("not found")
-	ErrForbidden = errors.New("user does not have permission to perform this action")
-)
-
 func NewService(store store) Service {
 	return &srv{store}
 }
@@ -38,7 +33,15 @@ func (s *srv) Create(ctx context.Context, userId string, user CreateUserRequest)
 }
 
 func (s *srv) GetByUsername(ctx context.Context, username string) (db.User, error) {
-	return s.store.GetUserByUsername(ctx, username)
+	savedUser, err := s.store.GetUserByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.User{}, ErrNotFound
+		}
+		return db.User{}, err
+	}
+
+	return savedUser, nil
 }
 
 func (s *srv) GetById(ctx context.Context, id string) (db.User, error) {
