@@ -110,19 +110,18 @@ func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestReques
 	// Image key is moved from tmp/ to questId/
 	var newImageKey *string
 	if quest.ImageKey != nil {
-		if !strings.HasPrefix(*quest.ImageKey, media.TMP_PATH) {
+		if !strings.HasPrefix(*quest.ImageKey, media.TmpPath) {
 			return Quest{}, fmt.Errorf("invalid image source: key %q must be in the temporary folder", *quest.ImageKey)
 		}
 		// TODO must check if image in tmp belongs to the user (maybe use metadata)
 		// Extract filename into new location
 		filename := path.Base(*quest.ImageKey)
-		newImageKey = new(fmt.Sprintf("%s%s/%s", media.QUEST_PATH, id, filename))
+		newImageKey = new(fmt.Sprintf("%s%s/%s", media.QuestPath, id, filename))
 
 		err = s.storage.CopyObject(ctx, *quest.ImageKey, *newImageKey)
 		if err != nil {
 			return Quest{}, fmt.Errorf("moving image from tmp to final location: %w", err)
 		}
-		slog.Info("Moved image key for quest", "key", *newImageKey)
 	}
 
 	createQuestParams := db.CreateQuestParams{
@@ -168,22 +167,9 @@ func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestReques
 }
 
 func (s *srv) GetById(ctx context.Context, userId string, questId string) (Quest, error) {
-	if err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
-		return Quest{}, err
-	}
-
-	// Convert ID string to UUID
-	var pgUUID pgtype.UUID
-	err := pgUUID.Scan(questId)
+	// Authorize already fetches the quest
+	row, err := s.authorizeQuestOwner(ctx, questId, userId)
 	if err != nil {
-		return Quest{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
-	}
-
-	row, err := s.store.GetQuest(ctx, pgUUID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Quest{}, ErrQuestNotFound
-		}
 		return Quest{}, err
 	}
 
@@ -197,7 +183,7 @@ func (s *srv) CreateUserEntry(
 	questId string,
 	entryInput EntryUserInput,
 ) (Entry, error) {
-	if err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
+	if _, err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
 		return Entry{}, err
 	}
 
@@ -219,7 +205,7 @@ func (s *srv) CreateUserEntry(
 }
 
 func (s *srv) ListEntries(ctx context.Context, userId string, questId string, cursor *EntryCursor, limit int) (pagination.Page[Entry], error) {
-	if err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
+	if _, err := s.authorizeQuestOwner(ctx, questId, userId); err != nil {
 		return pagination.Page[Entry]{}, err
 	}
 
@@ -319,23 +305,25 @@ func (s *srv) persistEntry(
 	return mappedEntry, nil
 }
 
-func (s *srv) authorizeQuestOwner(ctx context.Context, questId string, userId string) error {
+// authorizeQuestOwner checks if quest with questId is owned by userId. Returns the quest if it's authorized
+func (s *srv) authorizeQuestOwner(ctx context.Context, questId string, userId string) (db.Quest, error) {
 	var pgUUID pgtype.UUID
 	err := pgUUID.Scan(questId)
 	if err != nil {
-		return fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
+		return db.Quest{}, fmt.Errorf("%w: invalid UUID format for quest id %q: %v", ErrBadRequest, questId, err)
 	}
 
-	// TODO this transaction isn't needed here but it's kept as an example, remove after adding change status
-	return s.store.ExecTx(ctx, func(qtx db.Querier) error {
-		quest, txErr := qtx.GetQuestForShare(ctx, pgUUID)
-		if txErr != nil {
-			return txErr
+	row, err := s.store.GetQuest(ctx, pgUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.Quest{}, ErrQuestNotFound
 		}
-		// Check if the user is the owner of the quest
-		if quest.UserID != userId {
-			return ErrForbidden
-		}
-		return nil
-	})
+		return db.Quest{}, err
+	}
+	// Check if the user is the owner of the quest
+	if row.UserID != userId {
+		return db.Quest{}, ErrForbidden
+	}
+
+	return row, nil
 }

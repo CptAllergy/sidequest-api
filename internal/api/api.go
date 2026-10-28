@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -39,7 +40,7 @@ func (app *Application) Run(h http.Handler) error {
 	return srv.ListenAndServe()
 }
 
-func (app *Application) Mount() http.Handler {
+func (app *Application) Mount() (http.Handler, error) {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -62,12 +63,15 @@ func (app *Application) Mount() http.Handler {
 		MaxAge:           300,
 	}))
 
-	validate := validation.SetupValidator()
+	validate, err := validation.SetupValidator()
+	if err != nil {
+		return nil, fmt.Errorf("setting up validator: %w\"", err)
+	}
 	app.mountQuests(r, validate)
 	app.mountUsers(r, validate)
 	app.mountMedia(r)
 
-	return r
+	return r, nil
 }
 
 func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) {

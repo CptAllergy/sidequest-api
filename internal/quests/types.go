@@ -6,8 +6,8 @@ import (
 )
 
 type CreateQuestRequest struct {
-	Title       string     `json:"title" validate:"required"`
-	Description *string    `json:"description"`
+	Title       string     `json:"title" validate:"required,min=1,max=100"`
+	Description *string    `json:"description,max=2000"`
 	Type        QuestType  `json:"type" validate:"required,quest_type"`
 	Status      StatusType `json:"status" validate:"required,quest_status"`
 	ImageKey    *string    `json:"imageKey"`

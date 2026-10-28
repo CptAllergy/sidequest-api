@@ -11,7 +11,7 @@ import (
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
-	"github.com/cptallergy/sidequest-api/internal/lib/validation"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
@@ -22,7 +22,8 @@ import (
 func TestCreateUserOk(t *testing.T) {
 	t.Parallel()
 
-	validate := validation.SetupValidator()
+	validate, err := setupValidator()
+	require.NoError(t, err)
 	mockService := &MockUserService{}
 
 	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.User{}, nil)
@@ -61,7 +62,8 @@ func TestCreateUserBadRequest(t *testing.T) {
 		},
 	}
 	// 1. Setup
-	validate := validation.SetupValidator()
+	validate, err := setupValidator()
+	require.NoError(t, err)
 	mockService := &MockUserService{}
 
 	h := NewHandler(mockService, validate)
@@ -90,7 +92,8 @@ func TestCreateUserBadRequest(t *testing.T) {
 func TestCreateUserInternalServerError(t *testing.T) {
 	t.Parallel()
 
-	validate := validation.SetupValidator()
+	validate, err := setupValidator()
+	require.NoError(t, err)
 	mockService := &MockUserService{}
 
 	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(db.User{}, errors.New("some error"))
@@ -139,4 +142,12 @@ func (m *MockUserService) GetById(ctx context.Context, id string) (db.User, erro
 func (m *MockUserService) List(ctx context.Context) ([]db.User, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]db.User), args.Error(1)
+}
+
+func setupValidator() (*validator.Validate, error) {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	if err := RegisterValidations(validate); err != nil {
+		return nil, err
+	}
+	return validate, nil
 }

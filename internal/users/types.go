@@ -5,7 +5,7 @@ import (
 )
 
 type CreateUserRequest struct {
-	Username string `json:"username" validate:"required"`
+	Username string `json:"username" validate:"required,min=4,max=30,username"`
 }
 
 type UserResponse struct {

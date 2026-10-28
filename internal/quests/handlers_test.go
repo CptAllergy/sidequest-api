@@ -11,7 +11,7 @@ import (
 
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/pagination"
-	"github.com/cptallergy/sidequest-api/internal/lib/validation"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
@@ -56,7 +56,8 @@ import (
 func TestCreateQuestOk(t *testing.T) {
 	t.Parallel()
 
-	validate := validation.SetupValidator()
+	validate, err := setupValidator()
+	require.NoError(t, err)
 	mockService := &MockQuestService{}
 
 	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(Quest{}, nil)
@@ -128,7 +129,8 @@ func TestCreateQuestBadRequest(t *testing.T) {
 		},
 	}
 	// 1. Setup
-	validate := validation.SetupValidator()
+	validate, err := setupValidator()
+	require.NoError(t, err)
 	mockService := &MockQuestService{}
 
 	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(Quest{}, nil)
@@ -158,7 +160,8 @@ func TestCreateQuestBadRequest(t *testing.T) {
 func TestCreateQuestInternalServerError(t *testing.T) {
 	t.Parallel()
 
-	validate := validation.SetupValidator()
+	validate, err := setupValidator()
+	require.NoError(t, err)
 	mockService := &MockQuestService{}
 
 	mockService.On("Create", mock.Anything, mock.Anything, mock.Anything).Return(Quest{}, errors.New("some error"))
@@ -187,6 +190,8 @@ func TestCreateQuestInternalServerError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, res.Code)
 }
 
+// TODO test entry creation for success and failure for a bunch of different contents
+
 type MockQuestService struct {
 	mock.Mock
 }
@@ -214,4 +219,12 @@ func (m *MockQuestService) CreateUserEntry(ctx context.Context, userId string, q
 func (m *MockQuestService) ListEntries(ctx context.Context, userId string, questId string, cursor *EntryCursor, limit int) (pagination.Page[Entry], error) {
 	args := m.Called(ctx, userId, questId, cursor, limit)
 	return args.Get(0).(pagination.Page[Entry]), args.Error(1)
+}
+
+func setupValidator() (*validator.Validate, error) {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	if err := RegisterValidations(validate); err != nil {
+		return nil, err
+	}
+	return validate, nil
 }

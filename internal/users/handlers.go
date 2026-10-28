@@ -23,17 +23,12 @@ type Handler struct {
 }
 
 func NewHandler(srv Service, validate *validator.Validate) *Handler {
-	// TODO handle errors.go
-	// TODO ensure we get helpful error messages when some validation fails
-	registerValidations(validate)
-
 	return &Handler{
 		srv,
 		validate,
 	}
 }
 
-// TODO need to think about the error handling here, maybe create some custom error types and use those to determine the status code and message to return
 func (h *Handler) GetByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
@@ -62,7 +57,6 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	httpx.Write(w, http.StatusOK, toUserResponse(user))
 }
 
-// TODO validations should include lengths of fields, maybe bring back validator
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	userId, ok := auth.UserId(r.Context())
 	if !ok {
@@ -74,7 +68,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO helpful errors.go here?
 	err := h.validate.Struct(newUser)
 	if err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body")
@@ -82,16 +75,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createdUser, err := h.srv.Create(r.Context(), userId, newUser)
-	// TODO handle conflict error
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
 	httpx.Write(w, http.StatusOK, toUserResponse(createdUser))
-}
-
-// TODO add required validations
-func registerValidations(v *validator.Validate) error {
-	return nil
 }

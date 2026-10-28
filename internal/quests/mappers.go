@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	db "github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/go-playground/validator/v10"
 )
 
 func toQuestResponse(q Quest) QuestResponse {
@@ -61,7 +62,7 @@ func toEntryResponses(es []Entry) ([]EntryResponse, error) {
 	return results, nil
 }
 
-func (e *CreateEntryRequest) decodeEntryInput() (EntryUserInput, error) {
+func (e *CreateEntryRequest) decodeEntryInput(v *validator.Validate) (EntryUserInput, error) {
 	var (
 		content EntryContentUserInput
 		err     error
@@ -78,6 +79,11 @@ func (e *CreateEntryRequest) decodeEntryInput() (EntryUserInput, error) {
 	}
 	if err != nil {
 		return EntryUserInput{}, fmt.Errorf("error decoding entry content: %v", err)
+	}
+
+	err = v.Struct(content)
+	if err != nil {
+		return EntryUserInput{}, fmt.Errorf("invalid request content: %v", err)
 	}
 
 	return EntryUserInput{

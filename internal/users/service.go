@@ -5,7 +5,9 @@ import (
 	"errors"
 
 	db "github.com/cptallergy/sidequest-api/internal/db/sqlc"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type store interface {
@@ -27,6 +29,10 @@ func (s *srv) Create(ctx context.Context, userId string, user CreateUserRequest)
 	dbUserParams := db.CreateUserParams{ID: userId, Username: user.Username, DisplayName: user.Username}
 	savedUser, err := s.store.CreateUser(ctx, dbUserParams)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return db.User{}, ErrUsernameTaken
+		}
 		return db.User{}, err
 	}
 	return savedUser, nil

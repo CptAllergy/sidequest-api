@@ -58,7 +58,11 @@ func main() {
 		AccountMiddleware: auth.NewAccountMiddleware(str),
 	}
 
-	mux := app.Mount()
+	mux, err := app.Mount()
+	if err != nil {
+		slog.Error("Failed to mount application", "error", err)
+		os.Exit(1)
+	}
 	err = app.Run(mux)
 	slog.Error("Server error when running", "error", err)
 	os.Exit(1)

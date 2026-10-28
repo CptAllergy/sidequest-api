@@ -18,6 +18,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ErrQuestNotFound):
 		httpx.Error(w, http.StatusNotFound, "quest not found")
 	case errors.Is(err, ErrForbidden):
+		// TODO maybe return not found to hide existing entries
 		httpx.Error(w, http.StatusForbidden, "forbidden")
 	case errors.Is(err, ErrBadRequest):
 		httpx.Error(w, http.StatusBadRequest, "invalid parameters")

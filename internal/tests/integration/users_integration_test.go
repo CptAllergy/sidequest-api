@@ -114,8 +114,10 @@ func TestCreateUser(t *testing.T) {
 			}),
 			AccountMiddleware: dummyMiddleware,
 		}
+		mux, err := app.Mount()
+		require.NoError(t, err)
 
-		testServer := httptest.NewServer(app.Mount())
+		testServer := httptest.NewServer(mux)
 
 		// Use http to create instead of directly
 		user, err := store.CreateUser(ctx, db.CreateUserParams{
@@ -130,6 +132,7 @@ func TestCreateUser(t *testing.T) {
 		require.EqualValues(t, 200, resp.StatusCode)
 	})
 
+	// TODO add test for username conflict
 	// TODO add more complete tests
 	//testServer := runTestServer()
 	//defer testServer.Close()

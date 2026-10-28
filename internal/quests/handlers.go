@@ -26,10 +26,6 @@ type Handler struct {
 }
 
 func NewHandler(srv Service, validate *validator.Validate) *Handler {
-	// TODO handle error
-	// TODO ensure we get helpful error messages when some validation fails
-	registerValidations(validate)
-
 	return &Handler{
 		srv,
 		validate,
@@ -120,7 +116,6 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	quest, err := h.srv.GetById(r.Context(), userId, questId)
-	// TODO add a not found error
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -142,7 +137,7 @@ func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entryInput, err := createEntryRequest.decodeEntryInput()
+	entryInput, err := createEntryRequest.decodeEntryInput(h.validate)
 	if err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -188,7 +183,6 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page, err := h.srv.ListEntries(r.Context(), userId, questId, cursor, limit)
-	// TODO add a not found error and catch forbidden error as well
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -247,19 +241,3 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 //	}
 //	w.WriteHeader(http.StatusNoContent)
 //}
-
-func registerValidations(v *validator.Validate) error {
-	err := v.RegisterValidation("quest_status", func(fl validator.FieldLevel) bool {
-		return StatusType(fl.Field().String()).IsValid()
-	})
-
-	if err != nil {
-		return err
-	}
-
-	err = v.RegisterValidation("quest_type", func(fl validator.FieldLevel) bool {
-		return QuestType(fl.Field().String()).IsValid()
-	})
-
-	return err
-}

@@ -36,8 +36,8 @@ type EntryContentResponse interface {
 }
 
 type EntryTextContent struct {
-	Title       string `json:"title" validate:"required"`
-	Description string `json:"description" validate:"required"`
+	Title       string `json:"title" validate:"required,min=1,max=100"`
+	Description string `json:"description" validate:"required,max=2000"`
 }
 
 func (EntryTextContent) entryType() EntryType {
@@ -48,9 +48,9 @@ func (EntryTextContent) entryContentResponse() {}
 func (EntryTextContent) entryInput()           {}
 
 type EntryImageContent struct {
-	Title       string `json:"title"`
+	Title       string `json:"title" validate:"max=100"`
 	ImageKey    string `json:"imageKey" validate:"required"`
-	Description string `json:"description"`
+	Description string `json:"description" validate:"max=2000"`
 }
 
 func (EntryImageContent) entryType() EntryType {
@@ -68,9 +68,9 @@ type EntryImageContentResponse struct {
 func (EntryImageContentResponse) entryContentResponse() {}
 
 type EntryLinkContent struct {
-	Title       string `json:"title"`
+	Title       string `json:"title" validate:"max=100"`
 	Url         string `json:"url" validate:"required"`
-	Description string `json:"description"`
+	Description string `json:"description" validate:"max=2000"`
 }
 
 func (EntryLinkContent) entryType() EntryType {
