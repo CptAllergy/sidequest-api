@@ -115,6 +115,7 @@ func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestReques
 		}
 		// TODO must check if image in tmp belongs to the user (maybe use metadata)
 		// Extract filename into new location
+		// TODO it might be better to generate a new UUID here just to ensure nothing weird is coming in
 		filename := path.Base(*quest.ImageKey)
 		newImageKey = new(fmt.Sprintf("%s%s/%s", media.QuestPath, id, filename))
 

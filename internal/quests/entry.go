@@ -49,7 +49,7 @@ func (EntryTextContent) entryInput()           {}
 
 type EntryImageContent struct {
 	Title       string `json:"title" validate:"max=100"`
-	ImageKey    string `json:"imageKey" validate:"required"`
+	ImageKey    string `json:"imageKey" validate:"required,max=255"`
 	Description string `json:"description" validate:"max=2000"`
 }
 
@@ -69,7 +69,7 @@ func (EntryImageContentResponse) entryContentResponse() {}
 
 type EntryLinkContent struct {
 	Title       string `json:"title" validate:"max=100"`
-	Url         string `json:"url" validate:"required"`
+	Url         string `json:"url" validate:"required,url,max=2048"`
 	Description string `json:"description" validate:"max=2000"`
 }
 
