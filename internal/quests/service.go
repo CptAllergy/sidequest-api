@@ -6,13 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path"
-	"strings"
 	"time"
 
 	"github.com/cptallergy/sidequest-api/internal/db/sqlc"
 	"github.com/cptallergy/sidequest-api/internal/lib/pagination"
-	"github.com/cptallergy/sidequest-api/internal/lib/storage"
 	"github.com/cptallergy/sidequest-api/internal/media"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -33,12 +30,12 @@ type store interface {
 }
 
 type srv struct {
-	store   store
-	storage storage.Storage
+	store store
+	media media.Service
 }
 
-func NewService(store store, storage storage.Storage) Service {
-	return &srv{store: store, storage: storage}
+func NewService(store store, media media.Service) Service {
+	return &srv{store, media}
 }
 
 func (s *srv) ListByUserId(
@@ -82,13 +79,15 @@ func (s *srv) ListByUserId(
 	}
 
 	mappedQuests := make([]Quest, 0, len(rows))
-	// TODO is this efficient? Investigate approaches
 	for _, row := range rows {
 		var imageUrl *string
 		if row.ImageKey != nil {
-			// TODO handle err, probably don't fail and just skip the image if there's an error, leave a comment explaining that
-			url, _ := s.storage.PresignGetUrl(ctx, *row.ImageKey, 3600)
-			imageUrl = &url
+			url, err := s.media.CreatePresignedGetUrl(ctx, *row.ImageKey)
+			if err != nil {
+				slog.Error("Failed to create presigned get URL for quest image", "questId", row.ID, "imageKey", *row.ImageKey, "error", err)
+			} else {
+				imageUrl = &url
+			}
 		}
 		mappedQuest := toQuestFromRow(row, imageUrl)
 		mappedQuests = append(mappedQuests, mappedQuest)
@@ -110,18 +109,9 @@ func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestReques
 	// Image key is moved from tmp/ to questId/
 	var newImageKey *string
 	if quest.ImageKey != nil {
-		if !strings.HasPrefix(*quest.ImageKey, media.TmpPath) {
-			return Quest{}, fmt.Errorf("invalid image source: key %q must be in the temporary folder", *quest.ImageKey)
-		}
-		// TODO must check if image in tmp belongs to the user (maybe use metadata)
-		// Extract filename into new location
-		// TODO it might be better to generate a new UUID here just to ensure nothing weird is coming in
-		filename := path.Base(*quest.ImageKey)
-		newImageKey = new(fmt.Sprintf("%s%s/%s", media.QuestPath, id, filename))
-
-		err = s.storage.CopyObject(ctx, *quest.ImageKey, *newImageKey)
+		newImageKey, err = s.media.PromoteTemporaryImage(ctx, userId, *quest.ImageKey, fmt.Sprintf("%s%s", media.QuestPath, id))
 		if err != nil {
-			return Quest{}, fmt.Errorf("moving image from tmp to final location: %w", err)
+			return Quest{}, err
 		}
 	}
 
@@ -138,32 +128,18 @@ func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestReques
 	createdQuest, err := s.store.CreateQuest(ctx, createQuestParams)
 	if err != nil {
 		if newImageKey != nil {
-			// Remove orphaned image if quest isn't created
-			errCleanup := s.storage.DeleteObject(ctx, *newImageKey)
-			if errCleanup != nil {
-				slog.Error("Failed to delete orphaned image", "key", *newImageKey, "err", errCleanup)
-			} else {
-				slog.Info("Deleted orphaned image", "key", *newImageKey)
-			}
-
+			s.media.DeleteOrphanedImage(ctx, *newImageKey)
 		}
 		return Quest{}, err
 	}
 
 	if quest.ImageKey != nil {
 		// Event saved, delete the original image in tmp/
-		go func(objectKey string) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			errCleanup := s.storage.DeleteObject(ctx, objectKey)
-			// Failure here is fine because tmp/ is cleaned periodically
-			if errCleanup != nil {
-				slog.Warn("Failed to delete tmp/ image", "key", objectKey, "err", errCleanup)
-			}
-		}(*quest.ImageKey)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		go s.media.DeleteTemporaryImage(ctx, *quest.ImageKey)
 	}
 
-	// TODO do I need a presigned url right here?
 	return toQuestFromRow(createdQuest, nil), nil
 }
 
@@ -174,8 +150,12 @@ func (s *srv) GetById(ctx context.Context, userId string, questId string) (Quest
 		return Quest{}, err
 	}
 
-	// TODO need the presigned url here for sure
-	return toQuestFromRow(row, nil), nil
+	url, err := s.media.CreatePresignedGetUrl(ctx, *row.ImageKey)
+	if err != nil {
+		return Quest{}, err
+	}
+
+	return toQuestFromRow(row, &url), nil
 }
 
 func (s *srv) CreateUserEntry(

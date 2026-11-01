@@ -67,16 +67,21 @@ func (app *Application) Mount() (http.Handler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("setting up validator: %w\"", err)
 	}
-	app.mountQuests(r, validate)
-	app.mountUsers(r, validate)
-	app.mountMedia(r)
+
+	// Create Services
+	userService := users.NewService(app.Store)
+	mediaService := media.NewService(app.Storage)
+	questService := quests.NewService(app.Store, mediaService)
+
+	app.mountUsers(r, userService, validate)
+	app.mountMedia(r, mediaService)
+	app.mountQuests(r, questService, validate)
 
 	return r, nil
 }
 
-func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) {
-	questService := quests.NewService(app.Store, app.Storage)
-	questHandler := quests.NewHandler(questService, validate)
+func (app *Application) mountQuests(r chi.Router, srv quests.Service, validate *validator.Validate) {
+	questHandler := quests.NewHandler(srv, validate)
 	r.Route("/api/v1/quests", func(r chi.Router) {
 		r.Use(app.AuthMiddleware)
 		r.Use(app.AccountMiddleware)
@@ -88,9 +93,8 @@ func (app *Application) mountQuests(r chi.Router, validate *validator.Validate) 
 	})
 }
 
-func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
-	userService := users.NewService(app.Store)
-	userHandler := users.NewHandler(userService, validate)
+func (app *Application) mountUsers(r chi.Router, srv users.Service, validate *validator.Validate) {
+	userHandler := users.NewHandler(srv, validate)
 	r.Route("/api/v1", func(r chi.Router) {
 		// Check own account
 		r.With(app.AuthMiddleware).Get("/me", userHandler.GetMe)
@@ -107,9 +111,8 @@ func (app *Application) mountUsers(r chi.Router, validate *validator.Validate) {
 	})
 }
 
-func (app *Application) mountMedia(r chi.Router) {
-	mediaService := media.NewService(app.Storage)
-	mediaHandler := media.NewHandler(mediaService)
+func (app *Application) mountMedia(r chi.Router, srv media.Service) {
+	mediaHandler := media.NewHandler(srv)
 	r.Route("/api/v1/uploads", func(r chi.Router) {
 		r.Use(app.AuthMiddleware)
 		r.Use(app.AccountMiddleware)

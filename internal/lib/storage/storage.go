@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -23,9 +26,15 @@ type Storage interface {
 	PresignGetUrl(
 		ctx context.Context, objectKey string, lifetimeSecs int64) (string, error)
 	PresignPutUrl(
-		ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
+		ctx context.Context,
+		objectKey string,
+		contentType string,
+		metadata map[string]string,
+		lifetimeSecs int64) (*v4.PresignedHTTPRequest, error)
+	HeadObject(ctx context.Context, objectKey string) (ObjectInfo, error)
 	CopyObject(ctx context.Context, objectKey string, objectDest string) error
 	DeleteObject(ctx context.Context, objectKey string) error
+	ReadObjectContentType(ctx context.Context, objectKey string) (string, error)
 }
 
 type s3Storage struct {
@@ -33,6 +42,15 @@ type s3Storage struct {
 	presigner  *s3.PresignClient
 	bucketName string
 }
+
+type ObjectInfo struct {
+	Key         string
+	ContentType string
+	Size        int64
+	Metadata    map[string]string
+}
+
+var ErrObjectNotFound = errors.New("object not found")
 
 func NewStorage(ctx context.Context, cfg config.Storage) (Storage, error) {
 	sdkConfig, err := awsconfig.LoadDefaultConfig(ctx,
@@ -78,12 +96,12 @@ func (s *s3Storage) PresignGetUrl(
 }
 
 func (s *s3Storage) PresignPutUrl(
-	// TODO probably good to add some metadata with the userId (maybe optional metadata parameter) to authorize in object creation
-	ctx context.Context, objectKey string, contentType string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) {
+	ctx context.Context, objectKey string, contentType string, metadata map[string]string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) {
 	request, err := s.presigner.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucketName),
 		Key:         aws.String(objectKey),
 		ContentType: aws.String(contentType),
+		Metadata:    metadata,
 	}, func(opts *s3.PresignOptions) {
 		opts.Expires = time.Duration(lifetimeSecs * int64(time.Second))
 	})
@@ -91,6 +109,28 @@ func (s *s3Storage) PresignPutUrl(
 		return nil, fmt.Errorf("creating presigned put url for object %s: %w", objectKey, err)
 	}
 	return request, nil
+}
+
+func (s *s3Storage) HeadObject(ctx context.Context, objectKey string) (ObjectInfo, error) {
+	out, err := s.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(objectKey),
+	})
+
+	if err != nil {
+		var respErr *awshttp.ResponseError
+		if errors.As(err, &respErr) && respErr.HTTPStatusCode() == http.StatusNotFound {
+			return ObjectInfo{}, ErrObjectNotFound
+		}
+		return ObjectInfo{}, fmt.Errorf("head object %s: %w", objectKey, err)
+	}
+
+	return ObjectInfo{
+		Key:         objectKey,
+		ContentType: aws.ToString(out.ContentType),
+		Size:        aws.ToInt64(out.ContentLength),
+		Metadata:    out.Metadata,
+	}, nil
 }
 
 func (s *s3Storage) CopyObject(ctx context.Context, objectKey string, objectDest string) error {
@@ -131,4 +171,24 @@ func (s *s3Storage) DeleteObject(ctx context.Context, objectKey string) error {
 	}
 
 	return nil
+}
+
+func (s *s3Storage) ReadObjectContentType(ctx context.Context, objectKey string) (string, error) {
+	out, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(objectKey),
+		Range:  aws.String("bytes=0-511"), // Read the first 512 bytes to detect content type
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("get object content: %w", err)
+	}
+	defer func() { _ = out.Body.Close() }()
+
+	data, err := io.ReadAll(out.Body)
+	if err != nil {
+		return "", fmt.Errorf("read object content: %w", err)
+	}
+
+	return http.DetectContentType(data), nil
 }

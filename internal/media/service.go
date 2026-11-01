@@ -2,15 +2,14 @@ package media
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"mime"
+	"log/slog"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/cptallergy/sidequest-api/internal/lib/storage"
 	"github.com/google/uuid"
 )
-
-const tempDir = "tmp"
 
 type srv struct {
 	storage storage.Storage
@@ -20,42 +19,103 @@ func NewService(storage storage.Storage) Service {
 	return &srv{storage}
 }
 
-// TODO consider saving the userId in metadata, so that when quests or other objects are created, the userId can be matched to the file for authorization
 func (s *srv) CreatePresignedPutUrl(
 	ctx context.Context,
+	userId string,
 	presignedUploadDto PresignedUploadRequest,
 ) (
 	request *v4.PresignedHTTPRequest,
 	objectKey string,
 	err error,
 ) {
-	mediaType, ext, err := validateMediaType(presignedUploadDto.ContentType)
+	mediaType, ext, err := validateImageType(presignedUploadDto.ContentType)
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: invalid media-type", ErrUnsupportedMediaType)
 	}
 
-	objectKey = fmt.Sprintf("%s/%s%s", tempDir, uuid.New().String(), ext)
-	uploadInfo, err := s.storage.PresignPutUrl(ctx, objectKey, mediaType, 3600)
+	objectKey = fmt.Sprintf("%s%s%s", TmpPath, uuid.New().String(), ext)
+	metadata := map[string]string{
+		MetadataUserId: userId,
+	}
+	uploadInfo, err := s.storage.PresignPutUrl(ctx, objectKey, mediaType, metadata, GetImageUrlExpiration)
 	if err != nil {
 		return nil, "", err
 	}
 	return uploadInfo, objectKey, nil
 }
 
-func validateMediaType(mediaType string) (parsedType string, ext string, err error) {
-	if mediaType == "" {
-		return "", "", fmt.Errorf("%w: media-type header is required", ErrUnsupportedMediaType)
-	}
-
-	parsedType, _, err = mime.ParseMediaType(mediaType)
+func (s *srv) CreatePresignedGetUrl(ctx context.Context, imageKey string) (string, error) {
+	url, err := s.storage.PresignGetUrl(ctx, imageKey, GetImageUrlExpiration)
 	if err != nil {
-		return "", "", fmt.Errorf("%w: invalid media type format: %v", ErrUnsupportedMediaType, err)
+		return "", fmt.Errorf("%w: failed to create presigned get URL", err)
+	}
+	return url, nil
+}
+
+// PromoteTemporaryImage moves an image from the temporary folder to a permanent location and returns the new image key.
+func (s *srv) PromoteTemporaryImage(ctx context.Context, userId string, imageKey string, dest string) (*string, error) {
+	if !isValidTempImageKey(imageKey) {
+		return nil, fmt.Errorf("invalid image source: key %q must be valid and in the temporary folder", imageKey)
 	}
 
-	ext, ok := AllowedImageTypes[parsedType]
-	if !ok {
-		return "", "", fmt.Errorf("%w: '%s' is not allowed", ErrUnsupportedMediaType, parsedType)
+	info, err := s.storage.HeadObject(ctx, imageKey)
+	if err != nil {
+		if errors.Is(err, storage.ErrObjectNotFound) {
+			return nil, fmt.Errorf("%w: image key %q not found", ErrInvalidImage, imageKey)
+		}
+		return nil, fmt.Errorf("error occurred while fetching image info: %w", err)
 	}
 
-	return parsedType, ext, nil
+	if info.Size == 0 || info.Size > MaxImageSize {
+		return nil, fmt.Errorf("%w: invalid image size %q", ErrInvalidImage, imageKey)
+	}
+
+	// Check if the image belongs to the user by checking metadata
+	if info.Metadata[MetadataUserId] != userId {
+		return nil, fmt.Errorf("%w: image key %q does not belong to user %q", ErrInvalidImage, imageKey, userId)
+	}
+
+	// Detect the content type of the actual image and validate it against allowed mime types
+	var detectedType string
+	detectedType, err = s.storage.ReadObjectContentType(ctx, imageKey)
+	if err != nil {
+		return nil, fmt.Errorf("error occurred while reading image content type: %w", err)
+	}
+	var detectedExt string
+	detectedType, detectedExt, err = validateImageType(detectedType)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid media-type", ErrInvalidImage)
+	}
+
+	if detectedType != info.ContentType {
+		return nil, fmt.Errorf("%w: image content type mismatch", ErrInvalidImage)
+	}
+
+	// Create new image location
+	newImageUUID := uuid.New().String()
+	newImageKey := new(fmt.Sprintf("%s/%s%s", dest, newImageUUID, detectedExt))
+
+	err = s.storage.CopyObject(ctx, imageKey, *newImageKey)
+	if err != nil {
+		return nil, fmt.Errorf("moving image from tmp to final location: %w", err)
+	}
+
+	return newImageKey, nil
+}
+
+func (s *srv) DeleteTemporaryImage(ctx context.Context, imageKey string) {
+	errCleanup := s.storage.DeleteObject(ctx, imageKey)
+	// Failure here is fine because tmp/ is cleaned periodically
+	if errCleanup != nil {
+		slog.Warn("Failed to delete tmp/ image", "key", imageKey, "err", errCleanup)
+	}
+}
+
+func (s *srv) DeleteOrphanedImage(ctx context.Context, imageKey string) {
+	errCleanup := s.storage.DeleteObject(ctx, imageKey)
+	if errCleanup != nil {
+		slog.Error("Failed to delete orphaned image", "key", imageKey, "err", errCleanup)
+	} else {
+		slog.Info("Deleted orphaned image", "key", imageKey)
+	}
 }

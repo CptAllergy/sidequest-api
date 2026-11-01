@@ -1,6 +1,8 @@
 package quests
 
-import "github.com/go-playground/validator/v10"
+import (
+	"github.com/go-playground/validator/v10"
+)
 
 // TODO ensure we get helpful error messages when some validation fails
 func RegisterValidations(v *validator.Validate) error {
