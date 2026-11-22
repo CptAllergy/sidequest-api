@@ -418,7 +418,6 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 					UserId:  "user-id",
 					Type:    tt.entryType,
 					Content: tt.returned,
-					Icon:    "default",
 				}, nil).
 				Once()
 
@@ -434,7 +433,6 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 				UserId  string          `json:"userId"`
 				Type    EntryType       `json:"type"`
 				Content json.RawMessage `json:"content"`
-				Icon    string          `json:"icon"`
 			}
 			require.NoError(t, json.Unmarshal(res.Body.Bytes(), &response))
 
@@ -442,7 +440,6 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 			assert.Equal(t, "quest-id", response.QuestId)
 			assert.Equal(t, "user-id", response.UserId)
 			assert.Equal(t, tt.entryType, response.Type)
-			assert.Equal(t, "default", response.Icon)
 
 			// Compare the content cleanly using JSON equality
 			expectedContent, err := json.Marshal(tt.returned)
