@@ -29,6 +29,12 @@ INSERT INTO quests (id, user_id, title, description, type, status, image_key)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
+-- name: TouchQuest :exec
+UPDATE quests SET updated_at = now() WHERE id = $1;
+
+-- name: DeleteQuest :exec
+DELETE FROM quests WHERE id = $1;
+
 -- name: CreateQuestEntry :one
 INSERT INTO quest_entries (quest_id, user_id, type, content)
 VALUES ($1, $2, $3, $4)
@@ -49,5 +55,13 @@ WHERE quest_id = @quest_id
 ORDER BY created_at DESC, id DESC
 LIMIT @lim;
 
--- name: TouchQuest :exec
-UPDATE quests SET updated_at = now() WHERE id = $1;
+-- name: GetQuestEntry :one
+SELECT *
+FROM quest_entries
+WHERE id = $1;
+
+-- name: DeleteQuestEntry :exec
+DELETE FROM quest_entries WHERE id = $1;
+
+-- name: DeleteAllQuestEntries :exec
+DELETE FROM quest_entries WHERE quest_id = $1;

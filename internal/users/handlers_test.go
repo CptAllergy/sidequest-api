@@ -241,6 +241,58 @@ func TestHandler_GetMe_InternalError(t *testing.T) {
 	service.AssertExpectations(t)
 }
 
+func TestHandler_Delete_Ok(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id").
+		Return(nil).
+		Once()
+
+	res := deleteUserRequest(t, h, true)
+
+	assert.Equal(t, http.StatusNoContent, res.Code)
+	service.AssertExpectations(t)
+}
+
+func TestHandler_Delete_NotFound(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id").
+		Return(ErrNotFound).
+		Once()
+
+	res := deleteUserRequest(t, h, true)
+
+	assert.Equal(t, http.StatusNotFound, res.Code)
+	service.AssertExpectations(t)
+}
+
+func TestHandler_Delete_Unauthorized(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	res := deleteUserRequest(t, h, false)
+
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+	service.AssertNotCalled(t, "Delete")
+}
+
+func TestHandler_Delete_InternalError(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id").
+		Return(errors.New("some error")).
+		Once()
+
+	res := deleteUserRequest(t, h, true)
+
+	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	service.AssertExpectations(t)
+}
+
 func createRequest(t *testing.T, h *Handler, body any, hasIdentity bool) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -257,7 +309,6 @@ func createRequest(t *testing.T, h *Handler, body any, hasIdentity bool) *httpte
 	res := httptest.NewRecorder()
 
 	h.Create(res, req)
-
 	return res
 }
 
@@ -295,7 +346,22 @@ func getMeRequest(t *testing.T, h *Handler, hasIdentity bool) *httptest.Response
 	res := httptest.NewRecorder()
 
 	h.GetMe(res, req)
+	return res
+}
 
+func deleteUserRequest(t *testing.T, h *Handler, hasIdentity bool) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodDelete, "/users/me", nil)
+
+	if hasIdentity {
+		ctx := auth.SetIdentityToContext(req.Context(), auth.Identity{Id: "user-id"})
+		req = req.WithContext(ctx)
+	}
+
+	res := httptest.NewRecorder()
+
+	h.Delete(res, req)
 	return res
 }
 
@@ -354,4 +420,9 @@ func (m *MockUserService) GetByUsername(ctx context.Context, username string) (d
 func (m *MockUserService) GetById(ctx context.Context, id string) (db.User, error) {
 	args := m.Called(ctx, id)
 	return args.Get(0).(db.User), args.Error(1)
+}
+
+func (m *MockUserService) Delete(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }

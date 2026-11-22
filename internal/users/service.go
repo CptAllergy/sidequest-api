@@ -15,6 +15,7 @@ type store interface {
 	CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error)
 	GetUserById(ctx context.Context, id string) (db.User, error)
 	GetUserByUsername(ctx context.Context, username string) (db.User, error)
+	DeleteUser(ctx context.Context, id string) error
 }
 
 type srv struct {
@@ -60,4 +61,18 @@ func (s *srv) GetById(ctx context.Context, id string) (db.User, error) {
 	}
 
 	return savedUser, nil
+}
+
+func (s *srv) Delete(ctx context.Context, id string) error {
+	// TODO delete something in zitadel??
+	// TODO delete user images in storage (user images not yet implemented)
+	err := s.store.DeleteUser(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+
+	return nil
 }

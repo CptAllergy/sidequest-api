@@ -90,23 +90,22 @@ func (app *Application) mountQuests(r chi.Router, srv quests.Service, validate *
 		r.Post("/", questHandler.Create)
 		r.Post("/{id}/entries", questHandler.CreateEntry)
 		r.Get("/{id}/entries", questHandler.ListQuestEntries)
+		r.Delete("/{id}", questHandler.Delete)
 	})
 }
 
 func (app *Application) mountUsers(r chi.Router, srv users.Service, validate *validator.Validate) {
 	userHandler := users.NewHandler(srv, validate)
-	r.Route("/api/v1", func(r chi.Router) {
-		// Check own account
-		r.With(app.AuthMiddleware).Get("/me", userHandler.GetMe)
-		r.Route("/users", func(r chi.Router) {
-			r.Use(app.AuthMiddleware)
-			// Create new account
-			r.Post("/", userHandler.Create)
-			r.Group(func(r chi.Router) {
-				r.Use(app.AccountMiddleware)
-				// Require full account
-				r.Get("/{username}", userHandler.GetByUsername)
-			})
+	r.Route("/api/v1/users", func(r chi.Router) {
+		r.Use(app.AuthMiddleware)
+		// Require authentication
+		r.Get("/me", userHandler.GetMe)
+		r.Post("/", userHandler.Create)
+		r.Group(func(r chi.Router) {
+			r.Use(app.AccountMiddleware)
+			// Require full account
+			r.Get("/{username}", userHandler.GetByUsername)
+			r.Delete("/me", userHandler.Delete)
 		})
 	})
 }

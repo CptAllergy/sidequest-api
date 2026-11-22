@@ -134,6 +134,7 @@ func TestCreateUser(t *testing.T) {
 
 	// TODO add test for username conflict
 	// TODO add more complete tests
+	// TODO test user delete
 	//testServer := runTestServer()
 	//defer testServer.Close()
 	//

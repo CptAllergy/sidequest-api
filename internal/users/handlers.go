@@ -15,6 +15,7 @@ type Service interface {
 	Create(ctx context.Context, userId string, user CreateUserRequest) (db.User, error)
 	GetByUsername(ctx context.Context, username string) (db.User, error)
 	GetById(ctx context.Context, userId string) (db.User, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type Handler struct {
@@ -82,3 +83,21 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	httpx.Write(w, http.StatusOK, toUserResponse(createdUser))
 }
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	userId, ok := auth.UserId(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err := h.srv.Delete(r.Context(), userId)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	httpx.Write(w, http.StatusNoContent, nil)
+}
+
+// TODO add update account

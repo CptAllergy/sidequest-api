@@ -23,9 +23,13 @@ type store interface {
 	GetQuestForShare(ctx context.Context, id pgtype.UUID) (db.Quest, error)
 	ListQuestsByUserIdFirst(ctx context.Context, arg db.ListQuestsByUserIdFirstParams) ([]db.Quest, error)
 	ListQuestsByUserIdAfter(ctx context.Context, arg db.ListQuestsByUserIdAfterParams) ([]db.Quest, error)
+	DeleteQuest(ctx context.Context, id pgtype.UUID) error
+	GetQuestEntry(ctx context.Context, id pgtype.UUID) (db.QuestEntry, error)
 	ListQuestEntriesFirst(ctx context.Context, arg db.ListQuestEntriesFirstParams) ([]db.QuestEntry, error)
 	ListQuestEntriesAfter(ctx context.Context, arg db.ListQuestEntriesAfterParams) ([]db.QuestEntry, error)
 	CreateQuestEntry(ctx context.Context, arg db.CreateQuestEntryParams) (db.QuestEntry, error)
+	DeleteQuestEntry(ctx context.Context, id pgtype.UUID) error
+	DeleteAllQuestEntries(ctx context.Context, questID pgtype.UUID) error
 	TouchQuest(ctx context.Context, id pgtype.UUID) error
 }
 
@@ -128,6 +132,7 @@ func (s *srv) Create(ctx context.Context, userId string, quest CreateQuestReques
 	createdQuest, err := s.store.CreateQuest(ctx, createQuestParams)
 	if err != nil {
 		if newImageKey != nil {
+			// TODO This can fail, check if transactional outbox pattern is needed to delete the image later
 			s.media.DeleteOrphanedImage(ctx, *newImageKey)
 		}
 		return Quest{}, err
@@ -156,6 +161,27 @@ func (s *srv) GetById(ctx context.Context, userId string, questId string) (Quest
 	}
 
 	return toQuestFromRow(row, &url), nil
+}
+
+func (s *srv) Delete(ctx context.Context, userId string, questId string) error {
+	row, err := s.authorizeQuestOwner(ctx, questId, userId)
+	if err != nil {
+		return err
+	}
+
+	// Entries are also deleted with cascade
+	if err = s.store.DeleteQuest(ctx, row.ID); err != nil {
+		return err
+	}
+
+	if row.ImageKey != nil {
+		if err = s.media.DeleteQuestImages(ctx, row.ID.String()); err != nil {
+			// TODO consider using transactional outbox pattern do delete the images
+			slog.ErrorContext(ctx, "Failed to delete quest images", "questId", row.ID, "err", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *srv) CreateUserEntry(
@@ -239,6 +265,22 @@ func (s *srv) ListEntries(ctx context.Context, userId string, questId string, cu
 	return pagination.Trim(mappedEntries, limit), nil
 }
 
+func (s *srv) DeleteEntry(ctx context.Context, userId string, entryId string) error {
+	row, err := s.authorizeEntryOwner(ctx, entryId, userId)
+	if err != nil {
+		return err
+	}
+
+	if err = s.store.DeleteQuestEntry(ctx, row.ID); err != nil {
+		return err
+	}
+
+	// TODO consider using transactional outbox pattern do delete the image
+	// TODO add logic to check if the entry has an image and delete it from storage
+
+	return nil
+}
+
 // persistEntry uses the given querier to persist an entry during a transaction
 func (s *srv) persistEntry(
 	ctx context.Context,
@@ -304,6 +346,29 @@ func (s *srv) authorizeQuestOwner(ctx context.Context, questId string, userId st
 	// Check if the user is the owner of the quest
 	if row.UserID != userId {
 		return db.Quest{}, ErrForbidden
+	}
+
+	return row, nil
+}
+
+// authorizeQuestOwner checks if entry with entryId is owned by userId. Returns the entry if it's authorized
+func (s *srv) authorizeEntryOwner(ctx context.Context, entryId string, userId string) (db.QuestEntry, error) {
+	var pgUUID pgtype.UUID
+	err := pgUUID.Scan(entryId)
+	if err != nil {
+		return db.QuestEntry{}, fmt.Errorf("%w: invalid UUID format for entry id %q: %v", ErrBadRequest, entryId, err)
+	}
+
+	row, err := s.store.GetQuestEntry(ctx, pgUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.QuestEntry{}, ErrEntryNotFound
+		}
+		return db.QuestEntry{}, err
+	}
+	// Check if the user is the owner of the entry
+	if row.UserID != userId {
+		return db.QuestEntry{}, ErrForbidden
 	}
 
 	return row, nil

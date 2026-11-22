@@ -34,6 +34,7 @@ type Storage interface {
 	HeadObject(ctx context.Context, objectKey string) (ObjectInfo, error)
 	CopyObject(ctx context.Context, objectKey string, objectDest string) error
 	DeleteObject(ctx context.Context, objectKey string) error
+	DeleteObjectsWithPrefix(ctx context.Context, prefix string) error
 	ReadObjectContentType(ctx context.Context, objectKey string) (string, error)
 }
 
@@ -168,6 +169,50 @@ func (s *s3Storage) DeleteObject(ctx context.Context, objectKey string) error {
 		ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucketName), Key: aws.String(objectKey)}, time.Minute)
 	if err != nil {
 		return fmt.Errorf("attempting to wait for object %s in bucket %s to be deleted: %w", objectKey, s.bucketName, err)
+	}
+
+	return nil
+}
+
+func (s *s3Storage) DeleteObjectsWithPrefix(ctx context.Context, prefix string) error {
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucketName),
+		Prefix: aws.String(prefix),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("listing objects with prefix %s: %w", prefix, err)
+		}
+
+		if len(page.Contents) == 0 {
+			continue
+		}
+
+		objects := make([]types.ObjectIdentifier, 0, len(page.Contents))
+		for _, obj := range page.Contents {
+			objects = append(objects, types.ObjectIdentifier{Key: obj.Key})
+		}
+
+		out, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: aws.String(s.bucketName),
+			Delete: &types.Delete{
+				Objects: objects,
+				Quiet:   aws.Bool(true),
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("deleting objects with prefix %s: %w", prefix, err)
+		}
+
+		if len(out.Errors) > 0 {
+			first := out.Errors[0]
+			return fmt.Errorf(
+				"deleting %d object(s) with prefix %s failed (first key %q: %s): %s",
+				len(out.Errors), prefix, aws.ToString(first.Key), aws.ToString(first.Code), aws.ToString(first.Message),
+			)
+		}
 	}
 
 	return nil

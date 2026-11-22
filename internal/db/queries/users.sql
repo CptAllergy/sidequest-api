@@ -18,3 +18,6 @@ WHERE username = $1;
 INSERT INTO users (id, username, display_name)
 VALUES ($1, $2, $3)
 RETURNING *;
+
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1;

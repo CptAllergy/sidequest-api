@@ -16,6 +16,7 @@ type Service interface {
 	Create(ctx context.Context, userId string, quest CreateQuestRequest) (Quest, error)
 	GetById(ctx context.Context, userId string, questId string) (Quest, error)
 	ListByUserId(ctx context.Context, userId string, cursor *QuestCursor, limit int) (pagination.Page[Quest], error)
+	Delete(ctx context.Context, userId string, questId string) error
 	CreateUserEntry(ctx context.Context, userId string, questId string, entryInput EntryUserInput) (Entry, error)
 	ListEntries(ctx context.Context, userId string, questId string, cursor *EntryCursor, limit int) (pagination.Page[Entry], error)
 }
@@ -122,6 +123,23 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.Write(w, http.StatusOK, toQuestResponse(quest))
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	questId := chi.URLParam(r, "id")
+	userId, ok := auth.UserId(r.Context())
+	if !ok {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err := h.srv.Delete(r.Context(), userId, questId)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	httpx.Write(w, http.StatusNoContent, nil)
 }
 
 func (h *Handler) CreateEntry(w http.ResponseWriter, r *http.Request) {
@@ -231,13 +249,4 @@ func (h *Handler) ListQuestEntries(w http.ResponseWriter, r *http.Request) {
 //		http.Error(w, "Internal error", http.StatusInternalServerError)
 //		return
 //	}
-//}
-//func (q QuestHandler) DeleteQuest(w http.ResponseWriter, r *http.Request) {
-//	id := chi.URLParam(r, "id")
-//	quest := deleteQuest(id)
-//	if quest == nil {
-//		http.Error(w, "Quest not found", http.StatusNotFound)
-//		return
-//	}
-//	w.WriteHeader(http.StatusNoContent)
 //}

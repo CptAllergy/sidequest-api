@@ -11,6 +11,23 @@ import (
 	"github.com/google/uuid"
 )
 
+type Service interface {
+	CreatePresignedPutUrl(
+		ctx context.Context,
+		userId string,
+		presignedUploadDto PresignedUploadRequest,
+	) (
+		request *v4.PresignedHTTPRequest,
+		objectKey string,
+		err error,
+	)
+	CreatePresignedGetUrl(ctx context.Context, imageKey string) (string, error)
+	PromoteTemporaryImage(ctx context.Context, userId string, imageKey string, dest string) (*string, error)
+	DeleteImage(ctx context.Context, imageKey string) error
+	DeleteQuestImages(ctx context.Context, questId string) error
+	DeleteTemporaryImage(ctx context.Context, imageKey string)
+	DeleteOrphanedImage(ctx context.Context, imageKey string)
+}
 type srv struct {
 	storage storage.Storage
 }
@@ -103,18 +120,41 @@ func (s *srv) PromoteTemporaryImage(ctx context.Context, userId string, imageKey
 	return newImageKey, nil
 }
 
+func (s *srv) DeleteImage(ctx context.Context, imageKey string) error {
+	err := s.storage.DeleteObject(ctx, imageKey)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteQuestImages deletes all images associated with a quest by deleting all objects with the prefix "quests/{questId}/".
+func (s *srv) DeleteQuestImages(ctx context.Context, questId string) error {
+	if questId == "" {
+		return fmt.Errorf("questId cannot be empty")
+	}
+
+	err := s.storage.DeleteObjectsWithPrefix(ctx, QuestPath+questId+"/")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *srv) DeleteTemporaryImage(ctx context.Context, imageKey string) {
-	errCleanup := s.storage.DeleteObject(ctx, imageKey)
+	err := s.storage.DeleteObject(ctx, imageKey)
 	// Failure here is fine because tmp/ is cleaned periodically
-	if errCleanup != nil {
-		slog.Warn("Failed to delete tmp/ image", "key", imageKey, "err", errCleanup)
+	if err != nil {
+		slog.Warn("Failed to delete tmp/ image", "key", imageKey, "err", err)
 	}
 }
 
 func (s *srv) DeleteOrphanedImage(ctx context.Context, imageKey string) {
-	errCleanup := s.storage.DeleteObject(ctx, imageKey)
-	if errCleanup != nil {
-		slog.Error("Failed to delete orphaned image", "key", imageKey, "err", errCleanup)
+	err := s.storage.DeleteObject(ctx, imageKey)
+	if err != nil {
+		slog.Error("Failed to delete orphaned image", "key", imageKey, "err", err)
 	} else {
 		slog.Info("Deleted orphaned image", "key", imageKey)
 	}

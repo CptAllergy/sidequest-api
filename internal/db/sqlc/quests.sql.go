@@ -85,6 +85,33 @@ func (q *Queries) CreateQuestEntry(ctx context.Context, arg CreateQuestEntryPara
 	return i, err
 }
 
+const deleteAllQuestEntries = `-- name: DeleteAllQuestEntries :exec
+DELETE FROM quest_entries WHERE quest_id = $1
+`
+
+func (q *Queries) DeleteAllQuestEntries(ctx context.Context, questID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAllQuestEntries, questID)
+	return err
+}
+
+const deleteQuest = `-- name: DeleteQuest :exec
+DELETE FROM quests WHERE id = $1
+`
+
+func (q *Queries) DeleteQuest(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteQuest, id)
+	return err
+}
+
+const deleteQuestEntry = `-- name: DeleteQuestEntry :exec
+DELETE FROM quest_entries WHERE id = $1
+`
+
+func (q *Queries) DeleteQuestEntry(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteQuestEntry, id)
+	return err
+}
+
 const getQuest = `-- name: GetQuest :one
 SELECT id, user_id, title, description, type, status, image_key, created_at, updated_at
 FROM quests
@@ -102,6 +129,27 @@ func (q *Queries) GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error) {
 		&i.Type,
 		&i.Status,
 		&i.ImageKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getQuestEntry = `-- name: GetQuestEntry :one
+SELECT id, quest_id, user_id, type, content, created_at, updated_at
+FROM quest_entries
+WHERE id = $1
+`
+
+func (q *Queries) GetQuestEntry(ctx context.Context, id pgtype.UUID) (QuestEntry, error) {
+	row := q.db.QueryRow(ctx, getQuestEntry, id)
+	var i QuestEntry
+	err := row.Scan(
+		&i.ID,
+		&i.QuestID,
+		&i.UserID,
+		&i.Type,
+		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

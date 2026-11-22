@@ -15,6 +15,12 @@ type errorResponse struct {
 }
 
 func Write(w http.ResponseWriter, status int, data any) {
+	if status == http.StatusNoContent {
+		// No data to write
+		w.WriteHeader(status)
+		return
+	}
+
 	body, err := json.Marshal(data)
 	if err != nil {
 		slog.Error("Error marshaling response", "err", err)
@@ -28,11 +34,15 @@ func Write(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-// Read decodes the json request body into data. On failure it writes the error response and returns false
+// Read decodes the json request body into data. On failure, it writes the error response and returns false
 func Read(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(data); err != nil {
-		// TODO add a RequestEntityTooLarge check for chi middleware
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			Error(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return false
+		}
 		Error(w, http.StatusBadRequest, "invalid request body")
 		return false
 	}

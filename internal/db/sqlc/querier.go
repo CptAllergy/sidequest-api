@@ -14,7 +14,12 @@ type Querier interface {
 	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
 	CreateQuestEntry(ctx context.Context, arg CreateQuestEntryParams) (QuestEntry, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteAllQuestEntries(ctx context.Context, questID pgtype.UUID) error
+	DeleteQuest(ctx context.Context, id pgtype.UUID) error
+	DeleteQuestEntry(ctx context.Context, id pgtype.UUID) error
+	DeleteUser(ctx context.Context, id string) error
 	GetQuest(ctx context.Context, id pgtype.UUID) (Quest, error)
+	GetQuestEntry(ctx context.Context, id pgtype.UUID) (QuestEntry, error)
 	GetQuestForShare(ctx context.Context, id pgtype.UUID) (Quest, error)
 	GetUserById(ctx context.Context, id string) (User, error)
 	GetUserByIdForShare(ctx context.Context, id string) (User, error)

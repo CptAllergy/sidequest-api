@@ -1,30 +1,12 @@
 package media
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/cptallergy/sidequest-api/internal/lib/auth"
 	"github.com/cptallergy/sidequest-api/internal/lib/httpx"
 )
-
-type Service interface {
-	CreatePresignedPutUrl(
-		ctx context.Context,
-		userId string,
-		presignedUploadDto PresignedUploadRequest,
-	) (
-		request *v4.PresignedHTTPRequest,
-		objectKey string,
-		err error,
-	)
-	CreatePresignedGetUrl(ctx context.Context, imageKey string) (string, error)
-	PromoteTemporaryImage(ctx context.Context, userId string, imageKey string, dest string) (*string, error)
-	DeleteTemporaryImage(ctx context.Context, imageKey string)
-	DeleteOrphanedImage(ctx context.Context, imageKey string)
-}
 
 type Handler struct {
 	srv Service

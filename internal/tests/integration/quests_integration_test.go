@@ -24,3 +24,5 @@ func TestIntegrationGetQuestsHandler(t *testing.T) {
 	//	t.Errorf("expected 200 got: %v", resp.StatusCode)
 	//}
 }
+
+// TODO test delete quest deletes all entries and images

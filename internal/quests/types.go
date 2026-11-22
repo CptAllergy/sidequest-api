@@ -7,10 +7,10 @@ import (
 
 type CreateQuestRequest struct {
 	Title       string     `json:"title" validate:"required,min=1,max=100"`
-	Description *string    `json:"description" validate:"max=2000"`
+	Description *string    `json:"description" validate:"omitempty,max=2000"`
 	Type        QuestType  `json:"type" validate:"required,quest_type"`
 	Status      StatusType `json:"status" validate:"required,quest_status"`
-	ImageKey    *string    `json:"imageKey" validate:"max=255"`
+	ImageKey    *string    `json:"imageKey" validate:"omitempty,max=255"`
 }
 
 type QuestResponse struct {

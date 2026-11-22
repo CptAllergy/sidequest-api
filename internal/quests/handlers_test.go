@@ -22,23 +22,69 @@ import (
 
 func TestHandler_Create_Ok(t *testing.T) {
 	t.Parallel()
+	tests := map[string]struct {
+		quest CreateQuestRequest
+	}{
+		"all fields": {
+			quest: validCreateQuestRequest(),
+		},
+		"missing image": {
+			quest: CreateQuestRequest{
+				Title:       "test title",
+				Description: new("test description"),
+				Type:        Book,
+				Status:      Started,
+			},
+		},
+		"nil image": {
+			quest: CreateQuestRequest{
+				Title:       "test title",
+				Description: new("test description"),
+				Type:        Book,
+				Status:      Started,
+				ImageKey:    nil,
+			},
+		},
+		"missing description": {
+			quest: CreateQuestRequest{
+				Title:    "test title",
+				Type:     Book,
+				Status:   Started,
+				ImageKey: new("test-image-url"),
+			},
+		},
+		"nil description": {
+			quest: CreateQuestRequest{
+				Title:       "test title",
+				Description: nil,
+				Type:        Book,
+				Status:      Started,
+				ImageKey:    new("test-image-url"),
+			},
+		},
+	}
 
-	h, service := setupHandler(t)
-	service.On("Create", mock.Anything, "user-id", validCreateQuestRequest()).
-		Return(mockQuest(), nil).
-		Once()
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			h, service := setupHandler(t)
+			service.On("Create", mock.Anything, "user-id", mock.Anything).
+				Return(mockQuest(), nil).
+				Once()
 
-	res := createQuestRequest(t, h, validCreateQuestRequest(), true)
+			res := createQuestRequest(t, h, tt.quest, true)
 
-	assert.Equal(t, http.StatusOK, res.Code)
-	service.AssertExpectations(t)
+			assert.Equal(t, http.StatusOK, res.Code)
+			service.AssertExpectations(t)
 
-	var questRes QuestResponse
-	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &questRes))
-	assert.Equal(t, "quest-id", questRes.Id)
-	assert.Equal(t, "test title", questRes.Title)
-	assert.Equal(t, Book, questRes.Type)
-	assert.Equal(t, Started, questRes.Status)
+			var questRes QuestResponse
+			require.NoError(t, json.Unmarshal(res.Body.Bytes(), &questRes))
+			assert.Equal(t, "quest-id", questRes.Id)
+			assert.Equal(t, "test title", questRes.Title)
+			assert.Equal(t, Book, questRes.Type)
+			assert.Equal(t, Started, questRes.Status)
+		})
+	}
 }
 
 func TestHandler_Create_BadRequest(t *testing.T) {
@@ -194,7 +240,7 @@ func TestHandler_GetById_Forbidden(t *testing.T) {
 
 	res := getByIdRequest(t, h, "quest-id", true)
 
-	assert.Equal(t, http.StatusForbidden, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Code)
 	service.AssertExpectations(t)
 }
 
@@ -217,6 +263,72 @@ func TestHandler_GetById_InternalError(t *testing.T) {
 		Once()
 
 	res := getByIdRequest(t, h, "quest-id", true)
+
+	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	service.AssertExpectations(t)
+}
+
+func TestHandler_Delete_Ok(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id", "quest-id").
+		Return(nil).
+		Once()
+
+	res := deleteQuestRequest(t, h, "quest-id", true)
+
+	assert.Equal(t, http.StatusNoContent, res.Code)
+	service.AssertExpectations(t)
+}
+
+func TestHandler_Delete_NotFound(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id", "quest-id").
+		Return(ErrQuestNotFound).
+		Once()
+
+	res := deleteQuestRequest(t, h, "quest-id", true)
+
+	assert.Equal(t, http.StatusNotFound, res.Code)
+	service.AssertExpectations(t)
+}
+
+func TestHandler_Delete_Forbidden(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id", "quest-id").
+		Return(ErrForbidden).
+		Once()
+
+	res := deleteQuestRequest(t, h, "quest-id", true)
+
+	assert.Equal(t, http.StatusNotFound, res.Code)
+	service.AssertExpectations(t)
+}
+
+func TestHandler_Delete_Unauthorized(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	res := deleteQuestRequest(t, h, "quest-id", false)
+
+	assert.Equal(t, http.StatusUnauthorized, res.Code)
+	service.AssertNotCalled(t, "Delete")
+}
+
+func TestHandler_Delete_InternalError(t *testing.T) {
+	t.Parallel()
+
+	h, service := setupHandler(t)
+	service.On("Delete", mock.Anything, "user-id", "quest-id").
+		Return(errors.New("some error")).
+		Once()
+
+	res := deleteQuestRequest(t, h, "quest-id", true)
 
 	assert.Equal(t, http.StatusInternalServerError, res.Code)
 	service.AssertExpectations(t)
@@ -505,7 +617,7 @@ func TestHandler_CreateEntry_Forbidden(t *testing.T) {
 
 	res := createEntryRequest(t, h, "quest-id", validCreateEntryRequest(t), true)
 
-	assert.Equal(t, http.StatusForbidden, res.Code)
+	assert.Equal(t, http.StatusNotFound, res.Code)
 	service.AssertExpectations(t)
 }
 
@@ -558,6 +670,25 @@ func getByIdRequest(t *testing.T, h *Handler, questId string, hasIdentity bool) 
 
 	res := httptest.NewRecorder()
 	h.GetById(res, req)
+	return res
+}
+
+func deleteQuestRequest(t *testing.T, h *Handler, questId string, hasIdentity bool) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodDelete, "/quests/"+questId, nil)
+	ctx := req.Context()
+	if hasIdentity {
+		ctx = auth.SetIdentityToContext(ctx, auth.Identity{Id: "user-id"})
+	}
+
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("id", questId)
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, routeCtx)
+	req = req.WithContext(ctx)
+
+	res := httptest.NewRecorder()
+	h.Delete(res, req)
 	return res
 }
 
@@ -676,6 +807,11 @@ func (m *MockQuestService) Create(ctx context.Context, userId string, quest Crea
 func (m *MockQuestService) GetById(ctx context.Context, userId string, questId string) (Quest, error) {
 	args := m.Called(ctx, userId, questId)
 	return args.Get(0).(Quest), args.Error(1)
+}
+
+func (m *MockQuestService) Delete(ctx context.Context, userId string, questId string) error {
+	args := m.Called(ctx, userId, questId)
+	return args.Error(0)
 }
 
 func (m *MockQuestService) ListByUserId(ctx context.Context, userId string, cursor *QuestCursor, limit int) (pagination.Page[Quest], error) {
