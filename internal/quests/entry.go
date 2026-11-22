@@ -11,7 +11,6 @@ type Entry struct {
 	UserId    string
 	Type      EntryType
 	Content   EntryContent
-	Icon      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

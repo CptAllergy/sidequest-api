@@ -44,7 +44,6 @@ func toEntryResponse(e Entry) (EntryResponse, error) {
 		UserId:    e.UserId,
 		Type:      e.Type,
 		Content:   content,
-		Icon:      e.Icon,
 		CreatedAt: e.CreatedAt,
 		UpdatedAt: e.UpdatedAt,
 	}, nil
@@ -129,13 +128,11 @@ func toEntryFromRow(e db.QuestEntry) (Entry, error) {
 	}
 
 	return Entry{
-		Id:      e.ID.String(),
-		QuestId: e.QuestID.String(),
-		UserId:  e.UserID,
-		Type:    EntryType(e.Type),
-		Content: content,
-		// TODO add icons to db
-		Icon:      "default",
+		Id:        e.ID.String(),
+		QuestId:   e.QuestID.String(),
+		UserId:    e.UserID,
+		Type:      EntryType(e.Type),
+		Content:   content,
 		CreatedAt: e.CreatedAt.Time,
 		UpdatedAt: e.UpdatedAt.Time,
 	}, nil

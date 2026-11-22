@@ -76,7 +76,6 @@ type EntryResponse struct {
 	UserId    string               `json:"userId"`
 	Type      EntryType            `json:"type" `
 	Content   EntryContentResponse `json:"content"`
-	Icon      string               `json:"icon"`
 	CreatedAt time.Time            `json:"createdAt"`
 	UpdatedAt time.Time            `json:"updatedAt"`
 }
