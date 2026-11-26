@@ -194,17 +194,28 @@ func (s *srv) CreateUserEntry(
 		return Entry{}, err
 	}
 
+	content, err := s.prepareEntryContent(ctx, userId, questId, entryInput.Content)
+	if err != nil {
+		return Entry{}, err
+	}
+
 	entry := Entry{
 		Type:    entryInput.Type,
-		Content: entryInput.Content.(EntryContent),
+		Content: content,
 	}
 
 	var createdEntry Entry
-	err := s.store.ExecTx(ctx, func(qtx db.Querier) error {
+	err = s.store.ExecTx(ctx, func(qtx db.Querier) error {
 		var err error
 		createdEntry, err = s.persistEntry(ctx, qtx, entry, userId, questId)
 		return err
 	})
+	if err != nil {
+		s.cleanupEntryContent(ctx, content)
+		return Entry{}, err
+	}
+
+	createdEntry, err = s.withEntryImageUrl(ctx, createdEntry)
 	if err != nil {
 		return Entry{}, err
 	}
@@ -260,8 +271,15 @@ func (s *srv) ListEntries(ctx context.Context, userId string, questId string, cu
 		if err != nil {
 			return pagination.Page[Entry]{}, err
 		}
+
+		e, err = s.withEntryImageUrl(ctx, e)
+		if err != nil {
+			return pagination.Page[Entry]{}, err
+		}
+
 		mappedEntries = append(mappedEntries, e)
 	}
+
 	return pagination.Trim(mappedEntries, limit), nil
 }
 
@@ -279,6 +297,57 @@ func (s *srv) DeleteEntry(ctx context.Context, userId string, entryId string) er
 	// TODO add logic to check if the entry has an image and delete it from storage
 
 	return nil
+}
+
+// prepareEntryContent handles the preparation of entry content before persisting it. For image entries, it promotes the temporary image to its final location.
+func (s *srv) prepareEntryContent(ctx context.Context, userId string, questId string, input EntryContentUserInput) (EntryContent, error) {
+	switch in := input.(type) {
+	case EntryImageContent:
+		// TODO move all dest path logic to media service to centralize it
+		newImageKey, err := s.media.PromoteTemporaryImage(ctx, userId, in.ImageKey, fmt.Sprintf("%s%s/%s%s", media.QuestPath, questId, media.EntryPath, uuid.New().String()))
+		if err != nil {
+			return nil, err
+		}
+		in.ImageKey = *newImageKey
+		return in, nil
+	case EntryTextContent:
+		return in, nil
+	case EntryLinkContent:
+		return in, nil
+	default:
+		return nil, fmt.Errorf("%w: unknown entry content type", ErrBadRequest)
+	}
+}
+
+// cleanupEntryContent undoes any preparation done in prepareEntryContent in case of an error during entry creation. For image entries, it deletes the promoted image to avoid orphaned files.
+func (s *srv) cleanupEntryContent(ctx context.Context, entry EntryContent) {
+	switch in := entry.(type) {
+	case EntryImageContent:
+		// TODO This can fail, check if transactional outbox pattern is needed to delete the image later
+		s.media.DeleteOrphanedImage(ctx, in.ImageKey)
+	case EntryTextContent, EntryLinkContent:
+		// No cleanup needed for text or link entries
+	default:
+		slog.ErrorContext(ctx, "Unknown entry content type during cleanup", "type", fmt.Sprintf("%T", in))
+	}
+}
+
+// withEntryImageUrl adds the image URL to the entry if it is an image entry
+func (s *srv) withEntryImageUrl(ctx context.Context, e Entry) (Entry, error) {
+	img, ok := e.Content.(EntryImageContent)
+	if !ok {
+		return e, nil // Not an image entry, nothing to do
+	}
+
+	url, err := s.media.CreatePresignedGetUrl(ctx, img.ImageKey)
+	if err != nil {
+		return Entry{}, err
+	}
+
+	img.ImageUrl = url
+	e.Content = img
+
+	return e, nil
 }
 
 // persistEntry uses the given querier to persist an entry during a transaction

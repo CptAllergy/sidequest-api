@@ -32,8 +32,32 @@ func toQuestResponses(qs []Quest) []QuestResponse {
 }
 
 func toEntryResponse(e Entry) (EntryResponse, error) {
-	// TODO need to map image key to url on imageType
-	content, ok := e.Content.(EntryContentResponse)
+	var (
+		content EntryContentResponse
+		ok      bool
+	)
+	switch e.Type {
+	case Image:
+		var img EntryImageContent
+		img, ok = e.Content.(EntryImageContent)
+		if !ok {
+			return EntryResponse{}, fmt.Errorf("error decoding entry image content")
+		}
+		content = EntryImageContentResponse{
+			Title:       img.Title,
+			ImageUrl:    img.ImageUrl,
+			Description: img.Description,
+		}
+	case Text:
+		content, ok = e.Content.(EntryContentResponse)
+	case Link:
+		content, ok = e.Content.(EntryContentResponse)
+	case StatusChange:
+		content, ok = e.Content.(EntryContentResponse)
+	default:
+		return EntryResponse{}, fmt.Errorf("invalid entry type: %s", e.Type)
+	}
+
 	if !ok {
 		return EntryResponse{}, fmt.Errorf("error decoding entry content")
 	}

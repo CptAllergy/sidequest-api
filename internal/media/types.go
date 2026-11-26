@@ -18,7 +18,8 @@ var AllowedMimeTypes = map[string]string{
 
 const GetImageUrlExpiration = 3600 // 1 hour
 
-const QuestPath = "quests/"
 const TmpPath = "tmp/"
+const QuestPath = "quests/"
+const EntryPath = "entries/"
 const MetadataUserId = "user-id"
 const MaxImageSize int64 = 5 * 1024 * 1024 // 5MB

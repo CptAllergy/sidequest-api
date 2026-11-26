@@ -49,6 +49,7 @@ func (EntryTextContent) entryInput()           {}
 type EntryImageContent struct {
 	Title       string `json:"title" validate:"max=100"`
 	ImageKey    string `json:"imageKey" validate:"required,max=255"`
+	ImageUrl    string `json:"-"`
 	Description string `json:"description" validate:"max=2000"`
 }
 

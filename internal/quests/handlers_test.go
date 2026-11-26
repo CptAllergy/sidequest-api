@@ -341,6 +341,7 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 		entryType EntryType
 		input     EntryContentUserInput
 		returned  EntryContent
+		response  EntryContentResponse
 	}{
 		"text": {
 			entryType: Text,
@@ -349,6 +350,10 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 				Description: "test description",
 			},
 			returned: EntryTextContent{
+				Title:       "test title",
+				Description: "test description",
+			},
+			response: EntryTextContent{
 				Title:       "test title",
 				Description: "test description",
 			},
@@ -365,6 +370,11 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 				Url:         "https://example.com",
 				Description: "test description",
 			},
+			response: EntryLinkContent{
+				Title:       "test title",
+				Url:         "https://example.com",
+				Description: "test description",
+			},
 		},
 		"link without description": {
 			entryType: Link,
@@ -376,27 +386,46 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 				Title: "test title",
 				Url:   "https://example.com",
 			},
+			response: EntryLinkContent{
+				Title: "test title",
+				Url:   "https://example.com",
+			},
 		},
-		// TODO test image after it's added to the entry creation and fetching flow
-		//"image entry": {
-		//	entryType: Image,
-		//	input: EntryImageContent{
-		//		Title:       "test title",
-		//		ImageKey:    "some-key.jpg",
-		//		Description: "test description",
-		//	},
-		//	serviceContent: &EntryImageContent{
-		//		Title:       "test title",
-		//		ImageKey:    "some-key.jpg",
-		//		Description: "test description",
-		//	},
-		//	// Note how image uses its specific response type!
-		//	expectedContent: &EntryImageContentResponse{
-		//		Title:       "test title",
-		//		ImageUrl:    "https://cdn.example.com/some-key.jpg", // mapped by your handler/service layer
-		//		Description: "test description",
-		//	},
-		//},
+		"image": {
+			entryType: Image,
+			input: EntryImageContent{
+				Title:       "test title",
+				ImageKey:    "some-key.jpg",
+				Description: "test description",
+			},
+			returned: EntryImageContent{
+				Title:       "test title",
+				ImageKey:    "some-key.jpg",
+				ImageUrl:    "https://cdn.example.com/some-key.jpg",
+				Description: "test description",
+			},
+			response: EntryImageContentResponse{
+				Title:       "test title",
+				ImageUrl:    "https://cdn.example.com/some-key.jpg",
+				Description: "test description",
+			},
+		},
+		"image without description": {
+			entryType: Image,
+			input: EntryImageContent{
+				Title:    "test title",
+				ImageKey: "some-key.jpg",
+			},
+			returned: EntryImageContent{
+				Title:    "test title",
+				ImageKey: "some-key.jpg",
+				ImageUrl: "https://cdn.example.com/some-key.jpg",
+			},
+			response: EntryImageContentResponse{
+				Title:    "test title",
+				ImageUrl: "https://cdn.example.com/some-key.jpg",
+			},
+		},
 	}
 
 	for name, tt := range tests {
@@ -442,7 +471,7 @@ func TestHandler_CreateEntry_Ok(t *testing.T) {
 			assert.Equal(t, tt.entryType, response.Type)
 
 			// Compare the content cleanly using JSON equality
-			expectedContent, err := json.Marshal(tt.returned)
+			expectedContent, err := json.Marshal(tt.response)
 			require.NoError(t, err)
 
 			assert.JSONEq(t, string(expectedContent), string(response.Content))
